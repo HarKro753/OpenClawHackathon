@@ -29,9 +29,6 @@ RUN bun install --frozen-lockfile
 
 COPY . .
 
-RUN echo '#!/bin/bash\n/opt/venv/bin/python3 /app/skills/linkedin/scripts/lk.py "$@"' > /usr/local/bin/lk && \
-    chmod +x /usr/local/bin/lk
-
 EXPOSE 3001
 
 CMD ["bun", "run", "start"]
