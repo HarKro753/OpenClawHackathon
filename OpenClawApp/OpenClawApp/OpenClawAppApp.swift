@@ -12,6 +12,8 @@ struct OpenClawAppApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environment(\.chatManager, ChatManager())
+                .environment(\.integrationsManager, IntegrationsManager())
         }
     }
 }
