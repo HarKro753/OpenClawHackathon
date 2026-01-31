@@ -11,6 +11,8 @@ interface GogTokens {
   expires_in?: number;
   token_type?: string;
   scope?: string;
+  scopes?: string[];
+  email?: string;
   created_at: number;
 }
 
@@ -93,5 +95,8 @@ function setGogEnv(tokens: GogTokens) {
   }
   if (tokens.scope) {
     process.env.GOG_TOKEN_SCOPE = tokens.scope;
+  }
+  if (tokens.email) {
+    process.env.GOG_ACCOUNT = tokens.email;
   }
 }

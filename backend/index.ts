@@ -232,12 +232,44 @@ const server = Bun.serve({
           scope?: string;
         };
 
+        let email: string | undefined;
+        try {
+          const userInfoResponse = await fetch(
+            "https://www.googleapis.com/oauth2/v2/userinfo",
+            {
+              headers: {
+                Authorization: `Bearer ${tokenData.access_token}`,
+              },
+            },
+          );
+          if (userInfoResponse.ok) {
+            const userInfo = (await userInfoResponse.json()) as {
+              email?: string;
+            };
+            if (userInfo.email) {
+              email = userInfo.email;
+            }
+          } else {
+            console.warn(
+              "Failed to fetch Google user info:",
+              await userInfoResponse.text(),
+            );
+          }
+        } catch (error) {
+          console.warn(
+            "Failed to fetch Google user info:",
+            error instanceof Error ? error.message : String(error),
+          );
+        }
+
         setGogTokens({
           access_token: tokenData.access_token,
           refresh_token: tokenData.refresh_token,
           expires_in: tokenData.expires_in,
           token_type: tokenData.token_type,
           scope: tokenData.scope,
+          scopes: tokenData.scope?.split(" ").filter(Boolean),
+          email,
           created_at: Date.now(),
         });
 
