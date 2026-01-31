@@ -41,7 +41,7 @@ const pendingGogStates = new Set<string>();
 const contextManager = new ContextManager({
   openaiApiKey: process.env.OPENAI_API_KEY!,
   skillsDir: join(import.meta.dir, "..", "skills"),
-  skillFolders: ["gog", "notion"],
+  skillFolders: ["gog", "notion", "github"],
   systemPromptPath: join(import.meta.dir, "system-prompt.txt"),
 });
 
