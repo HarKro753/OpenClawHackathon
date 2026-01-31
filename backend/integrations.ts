@@ -5,6 +5,7 @@ interface IntegrationsStore {
   notionApiKey?: string;
   linkedinLiAt?: string;
   linkedinJsessionId?: string;
+  telegramBotToken?: string;
 }
 
 interface GogTokens {
@@ -45,6 +46,9 @@ export function loadIntegrationsFromDisk(): void {
   }
   if (store?.linkedinJsessionId) {
     process.env.LINKEDIN_JSESSIONID = store.linkedinJsessionId;
+  }
+  if (store?.telegramBotToken) {
+    process.env.TELEGRAM_BOT_TOKEN = store.telegramBotToken;
   }
 
   const gogTokens = readJsonFile<GogTokens>(gogTokensPath);
@@ -107,11 +111,25 @@ export function getIntegrationStatus() {
     linkedin: {
       connected: Boolean(linkedin.liAt && linkedin.jsessionId),
     },
+    telegram: {
+      connected: Boolean(getTelegramBotToken()),
+    },
   };
 }
 
 export function getGogTokensPath(): string {
   return gogTokensPath;
+}
+
+export function setTelegramBotToken(token: string) {
+  const store = readJsonFile<IntegrationsStore>(integrationsPath) || {};
+  store.telegramBotToken = token;
+  writeJsonFile(integrationsPath, store);
+  process.env.TELEGRAM_BOT_TOKEN = token;
+}
+
+export function getTelegramBotToken(): string | undefined {
+  return process.env.TELEGRAM_BOT_TOKEN;
 }
 
 function setGogEnv(tokens: GogTokens) {

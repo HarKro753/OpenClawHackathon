@@ -8,7 +8,13 @@ import {
   setNotionApiKey,
   setGogTokens,
   setLinkedInCookies,
+  setTelegramBotToken,
+  getTelegramBotToken,
 } from "./integrations.js";
+import {
+  startTelegramPolling,
+  stopTelegramPolling,
+} from "./telegram.js";
 import {
   runAgentLoopStreaming,
   type StreamEvent,
@@ -116,6 +122,46 @@ const server = Bun.serve({
 
       setLinkedInCookies({ liAt, jsessionId });
       return new Response(JSON.stringify({ success: true }), { headers });
+    }
+
+    if (
+      url.pathname === "/api/integrations/telegram" &&
+      req.method === "POST"
+    ) {
+      const body = (await req.json()) as { botToken?: string };
+      const botToken = body.botToken?.trim();
+      if (!botToken) {
+        return new Response(
+          JSON.stringify({ error: "Telegram bot token is required." }),
+          { status: 400, headers },
+        );
+      }
+
+      try {
+        const currentToken = getTelegramBotToken();
+        if (currentToken === botToken) {
+          return new Response(
+            JSON.stringify({ success: true, message: "Token unchanged" }),
+            { headers },
+          );
+        }
+
+        await stopTelegramPolling();
+        await new Promise((resolve) => setTimeout(resolve, 1500));
+        setTelegramBotToken(botToken);
+        await startTelegramPolling(botToken, openai, contextManager);
+        return new Response(JSON.stringify({ success: true }), { headers });
+      } catch (error) {
+        return new Response(
+          JSON.stringify({
+            error:
+              error instanceof Error
+                ? error.message
+                : "Failed to start Telegram bot.",
+          }),
+          { status: 500, headers },
+        );
+      }
     }
 
     if (url.pathname === "/api/auth/gog/start") {
@@ -452,3 +498,13 @@ console.log(
   `Skill routing enabled: LLM will select relevant skills per request`,
 );
 console.log(`Agentic loop: max ${DEFAULT_CONFIG.maxIterations} iterations`);
+
+// Start Telegram polling if token is configured
+const telegramToken = getTelegramBotToken();
+if (telegramToken) {
+  startTelegramPolling(telegramToken, openai, contextManager).catch(
+    (error) => {
+      console.error("Failed to start Telegram polling:", error);
+    },
+  );
+}

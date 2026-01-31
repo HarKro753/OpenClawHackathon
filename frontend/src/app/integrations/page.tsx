@@ -17,6 +17,7 @@ interface IntegrationStatus {
   notion: { connected: boolean };
   gog: { connected: boolean };
   linkedin: { connected: boolean };
+  telegram: { connected: boolean };
 }
 
 export default function IntegrationsPage() {
@@ -28,6 +29,9 @@ export default function IntegrationsPage() {
   const [linkedinJsession, setLinkedinJsession] = useState("");
   const [savingLinkedin, setSavingLinkedin] = useState(false);
   const [linkedinMessage, setLinkedinMessage] = useState<string | null>(null);
+  const [telegramToken, setTelegramToken] = useState("");
+  const [savingTelegram, setSavingTelegram] = useState(false);
+  const [telegramMessage, setTelegramMessage] = useState<string | null>(null);
 
   const BACKEND_URL =
     process.env.NEXT_PUBLIC_BACKEND_URL?.trim() || "http://localhost:3001";
@@ -81,7 +85,7 @@ export default function IntegrationsPage() {
 
     try {
       const response = await fetch(
-        "http://localhost:3001/api/integrations/linkedin",
+        `${BACKEND_URL}/api/integrations/linkedin`,
         {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -105,6 +109,37 @@ export default function IntegrationsPage() {
       setLinkedinMessage("Failed to save LinkedIn cookies.");
     } finally {
       setSavingLinkedin(false);
+    }
+  };
+
+  const saveTelegramToken = async () => {
+    if (!telegramToken.trim()) return;
+    setSavingTelegram(true);
+    setTelegramMessage(null);
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/integrations/telegram`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ botToken: telegramToken.trim() }),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        setTelegramMessage(
+          error?.error || "Failed to save Telegram bot token.",
+        );
+      } else {
+        setTelegramMessage(
+          "Telegram bot connected! Start chatting with your bot on Telegram.",
+        );
+        setTelegramToken("");
+        fetchStatus();
+      }
+    } catch {
+      setTelegramMessage("Failed to save Telegram bot token.");
+    } finally {
+      setSavingTelegram(false);
     }
   };
 
@@ -258,6 +293,65 @@ export default function IntegrationsPage() {
                   {linkedinMessage && (
                     <p className="text-xs text-muted-foreground">
                       {linkedinMessage}
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl">Telegram</CardTitle>
+                  <Badge
+                    variant={
+                      status?.telegram.connected ? "success" : "secondary"
+                    }
+                  >
+                    {status?.telegram.connected
+                      ? "Connected"
+                      : "Not connected"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <CardDescription>
+                  Create a bot with @BotFather on Telegram and paste the bot
+                  token below. Once saved, your bot will automatically start
+                  receiving messages.
+                </CardDescription>
+                <Button
+                  onClick={() =>
+                    window.open(
+                      "https://t.me/BotFather",
+                      "_blank",
+                      "noopener,noreferrer",
+                    )
+                  }
+                  className="mt-5"
+                >
+                  Open BotFather
+                </Button>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Send <code className="bg-muted px-1 py-0.5 rounded">/newbot</code> to BotFather, follow the prompts, and copy the token provided.
+                </p>
+                <div className="mt-4 flex flex-col gap-3">
+                  <Input
+                    type="password"
+                    value={telegramToken}
+                    onChange={(event) => setTelegramToken(event.target.value)}
+                    placeholder="Telegram bot token"
+                  />
+                  <Button
+                    onClick={saveTelegramToken}
+                    disabled={savingTelegram}
+                    variant="secondary"
+                  >
+                    {savingTelegram ? "Saving..." : "Save Telegram Token"}
+                  </Button>
+                  {telegramMessage && (
+                    <p className="text-xs text-muted-foreground">
+                      {telegramMessage}
                     </p>
                   )}
                 </div>
