@@ -84,17 +84,14 @@ export default function IntegrationsPage() {
     setLinkedinMessage(null);
 
     try {
-      const response = await fetch(
-        `${BACKEND_URL}/api/integrations/linkedin`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            liAt: linkedinLiAt.trim(),
-            jsessionId: linkedinJsession.trim(),
-          }),
-        },
-      );
+      const response = await fetch(`${BACKEND_URL}/api/integrations/linkedin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          liAt: linkedinLiAt.trim(),
+          jsessionId: linkedinJsession.trim(),
+        }),
+      });
 
       if (!response.ok) {
         const error = await response.json();
@@ -176,8 +173,7 @@ export default function IntegrationsPage() {
                 </CardDescription>
                 <Button
                   onClick={() => {
-                    window.location.href =
-                      `${BACKEND_URL}/api/auth/gog/start`;
+                    window.location.href = `${BACKEND_URL}/api/auth/gog/start`;
                   }}
                   className="mt-5"
                 >
@@ -308,9 +304,7 @@ export default function IntegrationsPage() {
                       status?.telegram.connected ? "success" : "secondary"
                     }
                   >
-                    {status?.telegram.connected
-                      ? "Connected"
-                      : "Not connected"}
+                    {status?.telegram.connected ? "Connected" : "Not connected"}
                   </Badge>
                 </div>
               </CardHeader>
@@ -333,7 +327,9 @@ export default function IntegrationsPage() {
                   Open BotFather
                 </Button>
                 <p className="mt-3 text-xs text-muted-foreground">
-                  Send <code className="bg-muted px-1 py-0.5 rounded">/newbot</code> to BotFather, follow the prompts, and copy the token provided.
+                  Send{" "}
+                  <code className="bg-muted px-1 py-0.5 rounded">/newbot</code>{" "}
+                  to BotFather, follow the prompts, and copy the token provided.
                 </p>
                 <div className="mt-4 flex flex-col gap-3">
                   <Input

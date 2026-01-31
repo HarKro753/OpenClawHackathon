@@ -26,9 +26,7 @@ struct ChatMessage: Identifiable {
 
 @Observable
 final class ChatManager {
-    var messages: [ChatMessage] = [
-        ChatMessage(role: .assistant, content: "Hi! I can help you get started.", timestamp: Date())
-    ]
+    var messages: [ChatMessage] = []
     var input: String = ""
     var isLoading = false
 
@@ -43,27 +41,40 @@ final class ChatManager {
         let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty, !isLoading else { return }
 
-        messages.append(ChatMessage(role: .user, content: trimmed, timestamp: Date()))
+        messages.append(
+            ChatMessage(role: .user, content: trimmed, timestamp: Date())
+        )
         input = ""
         isLoading = true
 
         let apiMessages = messages.compactMap { message -> [String: String]? in
             switch message.role {
             case .user: return ["role": "user", "content": message.content]
-            case .assistant: return ["role": "assistant", "content": message.content]
+            case .assistant:
+                return ["role": "assistant", "content": message.content]
             case .tool: return nil
             }
         }
 
-        var request = URLRequest(url: baseURL.appendingPathComponent("/api/chat"))
+        var request = URLRequest(
+            url: baseURL.appendingPathComponent("/api/chat")
+        )
         request.httpMethod = "POST"
         request.addValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.httpBody = try? JSONSerialization.data(withJSONObject: ["messages": apiMessages])
+        request.httpBody = try? JSONSerialization.data(withJSONObject: [
+            "messages": apiMessages
+        ])
 
         do {
-            let (bytes, response) = try await URLSession.shared.bytes(for: request)
-            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode >= 400 {
-                appendAssistantError("Request failed with status \(httpResponse.statusCode).")
+            let (bytes, response) = try await URLSession.shared.bytes(
+                for: request
+            )
+            if let httpResponse = response as? HTTPURLResponse,
+                httpResponse.statusCode >= 400
+            {
+                appendAssistantError(
+                    "Request failed with status \(httpResponse.statusCode)."
+                )
                 isLoading = false
                 return
             }
@@ -99,7 +110,10 @@ final class ChatManager {
                         message.toolOutput = dict["output"] as? String
                         message.toolError = dict["error"] as? String
                         if let success = message.toolSuccess {
-                            message.content = success ? (message.toolOutput ?? "") : "Error: \(message.toolError ?? "Unknown error")"
+                            message.content =
+                                success
+                                ? (message.toolOutput ?? "")
+                                : "Error: \(message.toolError ?? "Unknown error")"
                         }
                     }
                 } else if type == "content" || dict["content"] != nil {
@@ -120,7 +134,9 @@ final class ChatManager {
                         }
                     }
                 } else if type == "error" {
-                    appendAssistantError(dict["error"] as? String ?? "Unknown error")
+                    appendAssistantError(
+                        dict["error"] as? String ?? "Unknown error"
+                    )
                 }
             }
         } catch {
@@ -132,12 +148,18 @@ final class ChatManager {
 
     private func appendAssistantError(_ error: String) {
         messages.append(
-            ChatMessage(role: .assistant, content: "Error: \(error)", timestamp: Date())
+            ChatMessage(
+                role: .assistant,
+                content: "Error: \(error)",
+                timestamp: Date()
+            )
         )
     }
 
     private func updateMessage(id: UUID, update: (inout ChatMessage) -> Void) {
-        guard let index = messages.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = messages.firstIndex(where: { $0.id == id }) else {
+            return
+        }
         var message = messages[index]
         update(&message)
         messages[index] = message

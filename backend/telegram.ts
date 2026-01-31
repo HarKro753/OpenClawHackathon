@@ -52,12 +52,16 @@ class TelegramService {
 
   async start(token: string, openai: OpenAI, contextManager: ContextManager) {
     if (this.currentToken === token && this.polling) {
-      console.log("[Telegram] Polling already running with same token, skipping");
+      console.log(
+        "[Telegram] Polling already running with same token, skipping",
+      );
       return;
     }
 
     if (this.polling) {
-      console.log("[Telegram] Polling already running, stopping previous instance");
+      console.log(
+        "[Telegram] Polling already running, stopping previous instance",
+      );
       await this.stop();
       await this.sleep(1000);
     }
@@ -89,10 +93,7 @@ class TelegramService {
 
     if (this.pollLoopPromise) {
       try {
-        await Promise.race([
-          this.pollLoopPromise,
-          this.sleep(5000),
-        ]);
+        await Promise.race([this.pollLoopPromise, this.sleep(5000)]);
       } catch {
         // Ignore errors from poll loop
       }
@@ -223,7 +224,9 @@ class TelegramService {
       return;
     }
 
-    console.log(`[Telegram] Received message from chat ${chatId}: ${messageText}`);
+    console.log(
+      `[Telegram] Received message from chat ${chatId}: ${messageText}`,
+    );
 
     let history = this.conversationHistory.get(chatId);
     if (!history) {
@@ -241,15 +244,16 @@ class TelegramService {
       this.conversationHistory.set(chatId, history);
     }
 
-    const selectedSkills =
-      await this.contextManager.selectSkillsForMessages(
-        history.filter(
-          (m) => m.role === "user" || m.role === "assistant",
-        ) as Array<{ role: string; content: string }>,
-      );
+    const selectedSkills = await this.contextManager.selectSkillsForMessages(
+      history.filter(
+        (m) => m.role === "user" || m.role === "assistant",
+      ) as Array<{ role: string; content: string }>,
+    );
 
-    const messagesWithContext =
-      this.contextManager.buildContextMessages(selectedSkills, history);
+    const messagesWithContext = this.contextManager.buildContextMessages(
+      selectedSkills,
+      history,
+    );
 
     let assistantResponse = "";
 
@@ -260,15 +264,10 @@ class TelegramService {
     };
 
     try {
-      await runAgentLoopStreaming(
-        this.openai,
-        messagesWithContext,
-        sendEvent,
-        {
-          ...DEFAULT_CONFIG,
-          model: "gpt-4o-mini",
-        },
-      );
+      await runAgentLoopStreaming(this.openai, messagesWithContext, sendEvent, {
+        ...DEFAULT_CONFIG,
+        model: "gpt-4o-mini",
+      });
 
       if (assistantResponse.trim()) {
         await this.sendMessage(chatId, assistantResponse.trim());

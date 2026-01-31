@@ -250,7 +250,7 @@ export default function ChatPage() {
                   "text-xs px-2 py-0.5 rounded",
                   msg.toolSuccess
                     ? "bg-green-500/20 text-green-700 dark:text-green-400"
-                    : "bg-destructive/20 text-destructive"
+                    : "bg-destructive/20 text-destructive",
                 )}
               >
                 {msg.toolSuccess ? "Success" : "Failed"}
@@ -293,7 +293,7 @@ export default function ChatPage() {
           "p-4 rounded-lg max-w-[80%]",
           msg.role === "user"
             ? "bg-primary text-primary-foreground ml-auto"
-            : "bg-muted text-foreground"
+            : "bg-muted text-foreground",
         )}
       >
         <div className="whitespace-pre-wrap">{msg.content}</div>
