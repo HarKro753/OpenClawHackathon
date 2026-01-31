@@ -19,18 +19,153 @@ for (const envVar of requiredEnvVars) {
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-const skillsDir = join(import.meta.dir, "..", "skills");
-const skillNames = ["gog", "linkedin", "notion"];
-const skills: { name: string; content: string }[] = [];
+interface SkillMeta {
+  name: string;
+  description: string;
+  homepage?: string;
+  metadata?: Record<string, unknown>;
+}
 
-for (const name of skillNames) {
-  const skillPath = join(skillsDir, name, "SKILL.md");
+interface Skill {
+  folderName: string;
+  meta: SkillMeta;
+  content: string;
+}
+
+function parseFrontmatter(
+  content: string,
+): { meta: SkillMeta; body: string } | null {
+  const frontmatterRegex = /^---\n([\s\S]*?)\n---\n([\s\S]*)$/;
+  const match = content.match(frontmatterRegex);
+
+  if (!match || !match[1] || !match[2]) {
+    return null;
+  }
+
+  const yamlContent = match[1];
+  const body = match[2];
+
+  const nameMatch = yamlContent.match(/^name:\s*(.+)$/m);
+  const descriptionMatch = yamlContent.match(/^description:\s*(.+)$/m);
+  const homepageMatch = yamlContent.match(/^homepage:\s*(.+)$/m);
+
+  if (!nameMatch?.[1] || !descriptionMatch?.[1]) {
+    return null;
+  }
+
+  return {
+    meta: {
+      name: nameMatch[1].trim(),
+      description: descriptionMatch[1].trim(),
+      homepage: homepageMatch?.[1]?.trim(),
+    },
+    body: body.trim(),
+  };
+}
+
+const skillsDir = join(import.meta.dir, "..", "skills");
+const skillFolders = ["gog", "linkedin", "notion"];
+const skills: Skill[] = [];
+
+for (const folderName of skillFolders) {
+  const skillPath = join(skillsDir, folderName, "SKILL.md");
   try {
     const content = readFileSync(skillPath, "utf-8");
-    skills.push({ name, content });
-    console.log(`✅ Loaded skill: ${name}`);
+    const parsed = parseFrontmatter(content);
+
+    if (parsed) {
+      skills.push({
+        folderName,
+        meta: parsed.meta,
+        content,
+      });
+      console.log(`✅ Loaded skill: ${parsed.meta.name} (${folderName})`);
+    } else {
+      skills.push({
+        folderName,
+        meta: {
+          name: folderName,
+          description: `${folderName} skill`,
+        },
+        content,
+      });
+      console.log(`⚠️ Loaded skill without frontmatter: ${folderName}`);
+    }
   } catch (error) {
-    console.error(`⚠️ Failed to load ${name} skill:`, error);
+    console.error(`⚠️ Failed to load ${folderName} skill:`, error);
+  }
+}
+
+async function selectSkills(
+  userMessages: Array<{ role: string; content: string }>,
+  availableSkills: Skill[],
+): Promise<Skill[]> {
+  if (availableSkills.length === 0) {
+    return [];
+  }
+
+  const skillSummaries = availableSkills
+    .map((s) => `- ${s.meta.name}: ${s.meta.description}`)
+    .join("\n");
+
+  const recentMessages = userMessages
+    .filter((m) => m.role === "user")
+    .slice(-3)
+    .map((m) => m.content)
+    .join("\n");
+
+  const routerPrompt = `You are a skill router. Based on the user's request, determine which skills (if any) are needed to help them.
+
+Available skills:
+${skillSummaries}
+
+Respond with ONLY a JSON array of skill names that are relevant to help with this request.
+- Return [] (empty array) if no skills are needed (e.g., for general questions, greetings, or topics not covered by any skill)
+- Return one or more skill names if they are needed
+- Only include skills that are directly relevant to the user's request
+
+Examples of valid responses:
+["gog"]
+["linkedin-cli", "notion"]
+[]
+
+User's request:
+${recentMessages}`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [{ role: "user", content: routerPrompt }],
+      temperature: 0,
+      max_tokens: 100,
+    });
+
+    const content = response.choices[0]?.message?.content?.trim() || "[]";
+
+    let selectedNames: string[];
+    try {
+      selectedNames = JSON.parse(content);
+      if (!Array.isArray(selectedNames)) {
+        selectedNames = [];
+      }
+    } catch {
+      console.error("Failed to parse router response:", content);
+      selectedNames = [];
+    }
+
+    const selected = availableSkills.filter(
+      (s) =>
+        selectedNames.includes(s.meta.name) ||
+        selectedNames.includes(s.folderName),
+    );
+
+    console.log(
+      `🔀 Router selected skills: ${selected.length > 0 ? selected.map((s) => s.meta.name).join(", ") : "(none)"}`,
+    );
+    return selected;
+  } catch (error) {
+    console.error("Router error, falling back to all skills:", error);
+    return availableSkills;
   }
 }
 
@@ -39,12 +174,7 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "run_bash_command",
-      description:
-        "Execute a bash command. Use this for:\n" +
-        "- gog CLI: Gmail, Calendar, Drive, Contacts, Sheets, Docs operations\n" +
-        "- lk CLI: LinkedIn profiles, messages, feed operations\n" +
-        "- curl: Notion API calls for pages, databases, and blocks\n" +
-        "Environment variables LINKEDIN_LI_AT, LINKEDIN_JSESSIONID, and NOTION_API_KEY are available.",
+      description: "Execute a bash command.:\n",
       parameters: {
         type: "object",
         properties: {
@@ -59,16 +189,22 @@ const tools: OpenAI.Chat.ChatCompletionTool[] = [
   },
 ];
 
-const skillDocs = skills
-  .map((s) => `## ${s.name.toUpperCase()}\n\n${s.content}`)
-  .join("\n\n---\n\n");
-
 const baseSystemPrompt = readFileSync(
   join(import.meta.dir, "system-prompt.txt"),
-  "utf-8"
+  "utf-8",
 );
 
-const systemPrompt = `${baseSystemPrompt}\n\n# Available Tools Documentation\n\n${skillDocs}`;
+function buildSystemPrompt(selectedSkills: Skill[]): string {
+  if (selectedSkills.length === 0) {
+    return baseSystemPrompt;
+  }
+
+  const skillDocs = selectedSkills
+    .map((s) => `## ${s.meta.name.toUpperCase()}\n\n${s.content}`)
+    .join("\n\n---\n\n");
+
+  return `${baseSystemPrompt}\n\n# Available Tools Documentation\n\n${skillDocs}`;
+}
 
 async function executeCommand(
   command: string,
@@ -197,7 +333,7 @@ const server = Bun.serve({
         JSON.stringify({
           status: "ok",
           message: "Backend is running!",
-          skills: skills.map((s) => s.name),
+          skills: skills.map((s) => s.meta.name),
         }),
         { headers },
       );
@@ -209,7 +345,9 @@ const server = Bun.serve({
       };
       const { messages } = body;
 
-      // Add system prompt with skill context
+      const selectedSkills = await selectSkills(messages, skills);
+      const systemPrompt = buildSystemPrompt(selectedSkills);
+
       const messagesWithSystem: OpenAI.Chat.ChatCompletionMessageParam[] = [
         { role: "system", content: systemPrompt },
         ...(messages as OpenAI.Chat.ChatCompletionMessageParam[]),
@@ -241,6 +379,7 @@ const server = Bun.serve({
               ];
 
               for (const toolCall of message.tool_calls) {
+                if (toolCall.type !== "function") continue;
                 if (toolCall.function.name === "run_bash_command") {
                   const args = JSON.parse(toolCall.function.arguments);
                   const command = args.command;
@@ -317,4 +456,7 @@ const server = Bun.serve({
 });
 
 console.log(`Backend server running at http://localhost:${server.port}`);
-console.log(`Loaded skills: ${skills.map((s) => s.name).join(", ")}`);
+console.log(`Loaded skills: ${skills.map((s) => s.meta.name).join(", ")}`);
+console.log(
+  `Skill routing enabled: LLM will select relevant skills per request`,
+);
