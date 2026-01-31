@@ -1,0 +1,97 @@
+import { readFileSync, writeFileSync, existsSync } from "fs";
+import { join } from "path";
+
+interface IntegrationsStore {
+  notionApiKey?: string;
+}
+
+interface GogTokens {
+  access_token: string;
+  refresh_token?: string;
+  expires_in?: number;
+  token_type?: string;
+  scope?: string;
+  created_at: number;
+}
+
+const integrationsPath = join(import.meta.dir, ".integrations.json");
+const gogTokensPath = join(import.meta.dir, ".gog-tokens.json");
+
+function readJsonFile<T>(filePath: string): T | null {
+  if (!existsSync(filePath)) return null;
+  try {
+    const content = readFileSync(filePath, "utf-8");
+    return JSON.parse(content) as T;
+  } catch {
+    return null;
+  }
+}
+
+function writeJsonFile<T>(filePath: string, data: T) {
+  writeFileSync(filePath, JSON.stringify(data, null, 2));
+}
+
+export function loadIntegrationsFromDisk(): void {
+  const store = readJsonFile<IntegrationsStore>(integrationsPath);
+  if (store?.notionApiKey) {
+    process.env.NOTION_API_KEY = store.notionApiKey;
+  }
+
+  const gogTokens = readJsonFile<GogTokens>(gogTokensPath);
+  if (gogTokens?.access_token) {
+    setGogEnv(gogTokens);
+  }
+}
+
+export function setNotionApiKey(apiKey: string) {
+  const store = readJsonFile<IntegrationsStore>(integrationsPath) || {};
+  store.notionApiKey = apiKey;
+  writeJsonFile(integrationsPath, store);
+  process.env.NOTION_API_KEY = apiKey;
+}
+
+export function getNotionApiKey(): string | undefined {
+  return process.env.NOTION_API_KEY;
+}
+
+export function setGogTokens(tokens: GogTokens) {
+  writeJsonFile(gogTokensPath, tokens);
+  setGogEnv(tokens);
+}
+
+export function getGogTokens(): GogTokens | null {
+  return readJsonFile<GogTokens>(gogTokensPath);
+}
+
+export function getIntegrationStatus() {
+  return {
+    notion: { connected: Boolean(getNotionApiKey()) },
+    gog: {
+      connected: Boolean(
+        getGogTokens()?.refresh_token || getGogTokens()?.access_token,
+      ),
+    },
+  };
+}
+
+export function getGogTokensPath(): string {
+  return gogTokensPath;
+}
+
+function setGogEnv(tokens: GogTokens) {
+  process.env.GOG_ACCESS_TOKEN = tokens.access_token;
+  if (tokens.refresh_token) {
+    process.env.GOG_REFRESH_TOKEN = tokens.refresh_token;
+  }
+  if (tokens.expires_in) {
+    process.env.GOG_TOKEN_EXPIRES_AT = String(
+      tokens.created_at + tokens.expires_in * 1000,
+    );
+  }
+  if (tokens.token_type) {
+    process.env.GOG_TOKEN_TYPE = tokens.token_type;
+  }
+  if (tokens.scope) {
+    process.env.GOG_TOKEN_SCOPE = tokens.scope;
+  }
+}

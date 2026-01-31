@@ -169,7 +169,11 @@ ${recentMessages}`;
     );
 
     console.log(
-      `Router selected skills: ${selected.length > 0 ? selected.map((s) => s.meta.name).join(", ") : "(none)"}`,
+      `Router selected skills: ${
+        selected.length > 0
+          ? selected.map((s) => s.meta.name).join(", ")
+          : "(none)"
+      }`,
     );
     return selected;
   } catch (error) {
@@ -260,7 +264,9 @@ export class ContextManager {
 
     if (toolsMessage) {
       console.log(
-        `Loading tools into context: ${selectedSkills.map((s) => s.meta.name).join(", ")}`,
+        `Loading tools into context: ${selectedSkills
+          .map((s) => s.meta.name)
+          .join(", ")}`,
       );
     } else {
       console.log("No tools needed for this request");

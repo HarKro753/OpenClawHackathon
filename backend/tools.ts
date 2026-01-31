@@ -30,6 +30,11 @@ async function executeBashCommand(command: string): Promise<ToolResult> {
         LINKEDIN_LI_AT: process.env.LINKEDIN_LI_AT,
         LINKEDIN_JSESSIONID: process.env.LINKEDIN_JSESSIONID,
         NOTION_API_KEY: process.env.NOTION_API_KEY,
+        GOG_ACCESS_TOKEN: process.env.GOG_ACCESS_TOKEN,
+        GOG_REFRESH_TOKEN: process.env.GOG_REFRESH_TOKEN,
+        GOG_TOKEN_EXPIRES_AT: process.env.GOG_TOKEN_EXPIRES_AT,
+        GOG_TOKEN_TYPE: process.env.GOG_TOKEN_TYPE,
+        GOG_TOKEN_SCOPE: process.env.GOG_TOKEN_SCOPE,
       },
     });
 
