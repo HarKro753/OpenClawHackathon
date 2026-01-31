@@ -1,6 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Navbar } from "@/components/ui/navbar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 interface IntegrationStatus {
   notion: { connected: boolean };
@@ -61,101 +72,103 @@ export default function IntegrationsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 dark:bg-black px-6 py-10">
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-8">
-          <h1 className="text-3xl font-semibold text-zinc-900 dark:text-white">
-            Integrations
-          </h1>
-          <p className="mt-2 text-zinc-600 dark:text-zinc-400">
-            Connect external tools to power agent commands.
-          </p>
-        </div>
-
-        <div className="grid gap-6 md:grid-cols-2">
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
-                Google (gog)
-              </h2>
-              <span
-                className={`text-xs px-2 py-1 rounded-full ${
-                  status?.gog.connected
-                    ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200"
-                    : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                }`}
-              >
-                {status?.gog.connected ? "Connected" : "Not connected"}
-              </span>
-            </div>
-            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-              Authenticate with Google so gog commands can access Gmail,
-              Calendar, Drive, Docs, Sheets, and Contacts.
-            </p>
-            <button
-              onClick={() => {
-                window.location.href =
-                  "http://localhost:3001/api/auth/gog/start";
-              }}
-              className="mt-5 inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-            >
-              Connect Google
-            </button>
-            <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-500">
-              You will be redirected to Google OAuth in a new page.
+    <div className="flex min-h-screen flex-col">
+      <Navbar />
+      <main className="flex-1 bg-background px-6 py-10">
+        <div className="container mx-auto max-w-4xl">
+          <div className="mb-8">
+            <h1 className="text-3xl font-semibold tracking-tight">
+              Integrations
+            </h1>
+            <p className="mt-2 text-muted-foreground">
+              Connect external tools to power agent commands.
             </p>
           </div>
 
-          <div className="rounded-xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-semibold text-zinc-900 dark:text-white">
-                Notion
-              </h2>
-              <span
-                className={`text-xs px-2 py-1 rounded-full ${
-                  status?.notion.connected
-                    ? "bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-200"
-                    : "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300"
-                }`}
-              >
-                {status?.notion.connected ? "Connected" : "Not connected"}
-              </span>
-            </div>
-            <p className="mt-3 text-sm text-zinc-600 dark:text-zinc-400">
-              Create an integration in Notion and paste the API key here.
-            </p>
-            <a
-              href="https://www.notion.so/my-integrations"
-              target="_blank"
-              rel="noreferrer"
-              className="mt-3 inline-flex text-sm font-medium text-blue-600 hover:text-blue-700"
-            >
-              Open Notion integrations
-            </a>
-            <div className="mt-4 flex flex-col gap-3">
-              <input
-                type="password"
-                value={notionKey}
-                onChange={(event) => setNotionKey(event.target.value)}
-                placeholder="Notion API key"
-                className="w-full rounded-lg border border-zinc-300 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-3 py-2 text-sm text-zinc-900 dark:text-white"
-              />
-              <button
-                onClick={saveNotionKey}
-                disabled={savingNotion}
-                className="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm text-white hover:bg-zinc-800 disabled:opacity-60"
-              >
-                {savingNotion ? "Saving..." : "Save Notion Key"}
-              </button>
-              {notionMessage && (
-                <p className="text-xs text-zinc-600 dark:text-zinc-400">
-                  {notionMessage}
+          <div className="grid gap-6 md:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl">Google (gog)</CardTitle>
+                  <Badge
+                    variant={
+                      status?.gog.connected ? "success" : "secondary"
+                    }
+                  >
+                    {status?.gog.connected ? "Connected" : "Not connected"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <CardDescription>
+                  Authenticate with Google so gog commands can access Gmail,
+                  Calendar, Drive, Docs, Sheets, and Contacts.
+                </CardDescription>
+                <Button
+                  onClick={() => {
+                    window.location.href =
+                      "http://localhost:3001/api/auth/gog/start";
+                  }}
+                  className="mt-5"
+                >
+                  Connect Google
+                </Button>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  You will be redirected to Google OAuth in a new page.
                 </p>
-              )}
-            </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl">Notion</CardTitle>
+                  <Badge
+                    variant={
+                      status?.notion.connected ? "success" : "secondary"
+                    }
+                  >
+                    {status?.notion.connected ? "Connected" : "Not connected"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <CardDescription>
+                  Create an integration in Notion and paste the API key here.
+                </CardDescription>
+                <a
+                  href="https://www.notion.so/my-integrations"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="mt-3 inline-flex text-sm font-medium text-primary hover:underline"
+                >
+                  Open Notion integrations
+                </a>
+                <div className="mt-4 flex flex-col gap-3">
+                  <Input
+                    type="password"
+                    value={notionKey}
+                    onChange={(event) => setNotionKey(event.target.value)}
+                    placeholder="Notion API key"
+                  />
+                  <Button
+                    onClick={saveNotionKey}
+                    disabled={savingNotion}
+                    variant="secondary"
+                  >
+                    {savingNotion ? "Saving..." : "Save Notion Key"}
+                  </Button>
+                  {notionMessage && (
+                    <p className="text-xs text-muted-foreground">
+                      {notionMessage}
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
           </div>
         </div>
-      </div>
+      </main>
     </div>
   );
 }
