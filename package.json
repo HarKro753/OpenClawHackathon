@@ -1,0 +1,19 @@
+{
+  "name": "openclaw-hackathon",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "bun run dev:frontend & bun run dev:backend & wait",
+    "dev:frontend": "cd frontend && bun run dev",
+    "dev:backend": "cd backend && bun run dev",
+    "install": "bun install",
+    "build": "bun run --filter './frontend' build && bun run --filter './backend' build",
+    "start": "bun run start:frontend & bun run start:backend & wait",
+    "start:frontend": "cd frontend && bun run start",
+    "start:backend": "cd backend && bun run start"
+  }
+}
