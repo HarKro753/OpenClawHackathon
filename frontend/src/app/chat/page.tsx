@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Navbar } from "@/components/ui/navbar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,9 +20,105 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [speechEnabled, setSpeechEnabled] = useState(true);
+
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioObjectUrlRef = useRef<string | null>(null);
+  const ttsAbortControllerRef = useRef<AbortController | null>(null);
+
+  const BACKEND_URL =
+    process.env.NEXT_PUBLIC_BACKEND_URL?.trim() || "http://localhost:3001";
+
+  function stopSpeech() {
+    ttsAbortControllerRef.current?.abort();
+    ttsAbortControllerRef.current = null;
+
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+      audioRef.current.src = "";
+    }
+
+    if (audioObjectUrlRef.current) {
+      URL.revokeObjectURL(audioObjectUrlRef.current);
+      audioObjectUrlRef.current = null;
+    }
+  }
+
+  async function speakText(text: string) {
+    if (!speechEnabled) return;
+
+    const trimmed = text.trim();
+    if (!trimmed) return;
+
+    stopSpeech();
+
+    const controller = new AbortController();
+    ttsAbortControllerRef.current = controller;
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/tts`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: trimmed }),
+        signal: controller.signal,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("TTS failed:", errorText);
+        return;
+      }
+
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      audioObjectUrlRef.current = objectUrl;
+
+      if (!audioRef.current) {
+        audioRef.current = new Audio();
+      }
+
+      audioRef.current.onended = () => {
+        if (audioObjectUrlRef.current === objectUrl) {
+          URL.revokeObjectURL(objectUrl);
+          audioObjectUrlRef.current = null;
+        }
+      };
+
+      audioRef.current.src = objectUrl;
+
+      try {
+        await audioRef.current.play();
+      } catch (error) {
+        console.error("Audio playback failed:", error);
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      console.error("TTS request failed:", error);
+    } finally {
+      if (ttsAbortControllerRef.current === controller) {
+        ttsAbortControllerRef.current = null;
+      }
+    }
+  }
+
+  useEffect(() => {
+    if (!audioRef.current) {
+      audioRef.current = new Audio();
+    }
+    return () => stopSpeech();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (!speechEnabled) stopSpeech();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [speechEnabled]);
 
   const sendMessage = async () => {
     if (!input.trim() || loading) return;
+
+    stopSpeech();
 
     const userMessage: Message = { role: "user", content: input };
     const newMessages = [...messages, userMessage];
@@ -34,7 +130,7 @@ export default function ChatPage() {
       .filter((m) => m.role === "user" || m.role === "assistant")
       .map((m) => ({ role: m.role, content: m.content }));
 
-    const response = await fetch("http://localhost:3001/api/chat", {
+    const response = await fetch(`${BACKEND_URL}/api/chat`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ messages: apiMessages }),
@@ -130,6 +226,10 @@ export default function ChatPage() {
     }
 
     setLoading(false);
+
+    if (assistantContent.trim()) {
+      void speakText(assistantContent);
+    }
   };
 
   const renderMessage = (msg: Message, index: number) => {
@@ -216,6 +316,16 @@ export default function ChatPage() {
       </div>
       <div className="border-t border-border p-4 bg-background">
         <div className="mx-auto max-w-2xl flex gap-2">
+          <Button
+            type="button"
+            variant={speechEnabled ? "secondary" : "outline"}
+            onClick={() => setSpeechEnabled((v) => !v)}
+            disabled={loading && !speechEnabled}
+            aria-pressed={speechEnabled}
+            title={speechEnabled ? "Speech enabled" : "Speech disabled"}
+          >
+            Speech: {speechEnabled ? "On" : "Off"}
+          </Button>
           <Input
             type="text"
             value={input}

@@ -315,6 +315,67 @@ const server = Bun.serve({
       }
     }
 
+    if (url.pathname === "/api/tts" && req.method === "POST") {
+      const body = (await req.json()) as {
+        text?: string;
+      };
+
+      const text = body.text?.trim();
+      if (!text) {
+        return new Response(JSON.stringify({ error: "Text is required." }), {
+          status: 400,
+          headers,
+        });
+      }
+
+      const humeApiKey = process.env.HUME_API_KEY?.trim();
+      if (!humeApiKey) {
+        return new Response(
+          JSON.stringify({
+            error: "HUME_API_KEY environment variable is not set.",
+          }),
+          { status: 500, headers },
+        );
+      }
+
+      const humeResponse = await fetch("https://api.hume.ai/v0/tts/file", {
+        method: "POST",
+        headers: {
+          "X-Hume-Api-Key": humeApiKey,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          utterances: [
+            {
+              text,
+              voice: { name: "Ava Song", provider: "HUME_AI" as const },
+            },
+          ],
+          format: { type: "mp3" as const },
+        }),
+      });
+
+      if (!humeResponse.ok) {
+        const errorText = await humeResponse.text();
+        return new Response(
+          JSON.stringify({
+            error: `Hume TTS failed (${humeResponse.status}): ${errorText}`,
+          }),
+          { status: 502, headers },
+        );
+      }
+
+      const audio = await humeResponse.arrayBuffer();
+
+      return new Response(audio, {
+        headers: {
+          ...headers,
+          "Content-Type": "audio/mpeg",
+          "Cache-Control": "no-store",
+        },
+      });
+    }
+
     if (url.pathname === "/api/chat" && req.method === "POST") {
       const body = (await req.json()) as {
         messages: { role: string; content: string }[];

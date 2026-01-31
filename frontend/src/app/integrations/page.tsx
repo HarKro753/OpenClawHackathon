@@ -29,11 +29,12 @@ export default function IntegrationsPage() {
   const [savingLinkedin, setSavingLinkedin] = useState(false);
   const [linkedinMessage, setLinkedinMessage] = useState<string | null>(null);
 
+  const BACKEND_URL =
+    process.env.NEXT_PUBLIC_BACKEND_URL?.trim() || "http://localhost:3001";
+
   const fetchStatus = async () => {
     try {
-      const response = await fetch(
-        "http://localhost:3001/api/integrations/status",
-      );
+      const response = await fetch(`${BACKEND_URL}/api/integrations/status`);
       if (!response.ok) return;
       const data = (await response.json()) as IntegrationStatus;
       setStatus(data);
@@ -52,14 +53,11 @@ export default function IntegrationsPage() {
     setNotionMessage(null);
 
     try {
-      const response = await fetch(
-        "http://localhost:3001/api/integrations/notion",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ apiKey: notionKey.trim() }),
-        },
-      );
+      const response = await fetch(`${BACKEND_URL}/api/integrations/notion`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ apiKey: notionKey.trim() }),
+      });
 
       if (!response.ok) {
         const error = await response.json();
@@ -144,7 +142,7 @@ export default function IntegrationsPage() {
                 <Button
                   onClick={() => {
                     window.location.href =
-                      "http://localhost:3001/api/auth/gog/start";
+                      `${BACKEND_URL}/api/auth/gog/start`;
                   }}
                   className="mt-5"
                 >
