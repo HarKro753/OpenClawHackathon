@@ -1,23 +1,25 @@
 import { existsSync, mkdirSync } from "fs";
 import { join } from "path";
-import { chromium, type Browser, type Page } from "playwright-core";
+import {
+  chromium,
+  type Browser,
+  type Page,
+  type BrowserContext,
+} from "playwright-core";
 
-type BraveState = {
-  proc: ReturnType<typeof Bun.spawn> | null;
-  port: number;
-  cdpUrl: string;
+type BrowserState = {
+  browser: Browser | null;
+  context: BrowserContext | null;
   userDataDir: string;
 };
 
 const BRAVE_DEFAULT_PATH =
   "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser";
-const BRAVE_CDP_PORT = Number(process.env.BRAVE_CDP_PORT || "9222");
 const USER_DATA_DIR = join(import.meta.dir, ".brave-profile");
 
-const braveState: BraveState = {
-  proc: null,
-  port: BRAVE_CDP_PORT,
-  cdpUrl: `http://127.0.0.1:${BRAVE_CDP_PORT}`,
+const browserState: BrowserState = {
+  browser: null,
+  context: null,
   userDataDir: USER_DATA_DIR,
 };
 
@@ -30,96 +32,122 @@ function resolveBraveExecutable(): string {
   );
 }
 
-async function isCdpReachable(cdpUrl: string): Promise<boolean> {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 800);
-  try {
-    const response = await fetch(`${cdpUrl}/json/version`, {
-      signal: controller.signal,
+let browserLaunching: Promise<Browser> | null = null;
+
+async function getBrowser(): Promise<Browser> {
+  if (browserState.browser && browserState.browser.isConnected()) {
+    console.log("[Browser] Using existing browser instance");
+    return browserState.browser;
+  }
+
+  if (browserLaunching) {
+    console.log("[Browser] Waiting for browser to finish launching");
+    return browserLaunching;
+  }
+
+  browserLaunching = (async () => {
+    console.log("[Browser] Launching Brave browser...");
+
+    const executablePath = resolveBraveExecutable();
+    mkdirSync(browserState.userDataDir, { recursive: true });
+
+    const browser = await chromium.launch({
+      executablePath,
+      headless: false,
+      args: [
+        "--disable-blink-features=AutomationControlled",
+        "--disable-features=IsolateOrigins,site-per-process",
+        "--disable-sync",
+        "--disable-background-networking",
+        "--disable-component-update",
+      ],
     });
-    return response.ok;
-  } catch {
-    return false;
-  } finally {
-    clearTimeout(timeout);
-  }
-}
 
-function isProcessAlive(proc: BraveState["proc"]) {
-  return Boolean(proc && proc.exitCode === null);
-}
+    console.log("[Browser] Browser launched successfully");
 
-async function ensureBraveRunning(): Promise<void> {
-  if (await isCdpReachable(braveState.cdpUrl)) return;
-
-  if (isProcessAlive(braveState.proc)) {
-    const readyDeadline = Date.now() + 8000;
-    while (Date.now() < readyDeadline) {
-      if (await isCdpReachable(braveState.cdpUrl)) return;
-      await new Promise((resolve) => setTimeout(resolve, 200));
-    }
-  }
-
-  const exePath = resolveBraveExecutable();
-  mkdirSync(braveState.userDataDir, { recursive: true });
-
-  const args = [
-    `--remote-debugging-port=${braveState.port}`,
-    `--user-data-dir=${braveState.userDataDir}`,
-    "--no-first-run",
-    "--no-default-browser-check",
-    "--disable-sync",
-    "--disable-background-networking",
-    "--disable-component-update",
-    "--disable-features=Translate,MediaRouter",
-    "--disable-session-crashed-bubble",
-    "--hide-crash-restore-bubble",
-    "--password-store=basic",
-    "about:blank",
-  ];
-
-  braveState.proc = Bun.spawn([exePath, ...args], {
-    stdout: "ignore",
-    stderr: "ignore",
-  });
-
-  const readyDeadline = Date.now() + 15000;
-  while (Date.now() < readyDeadline) {
-    if (await isCdpReachable(braveState.cdpUrl)) return;
-    await new Promise((resolve) => setTimeout(resolve, 250));
-  }
-
-  throw new Error("Failed to start Brave with CDP enabled.");
-}
-
-let cachedBrowser: Browser | null = null;
-let connecting: Promise<Browser> | null = null;
-
-async function connectBrowser(): Promise<Browser> {
-  if (cachedBrowser) return cachedBrowser;
-  if (connecting) return connecting;
-
-  connecting = (async () => {
-    await ensureBraveRunning();
-    const browser = await chromium.connectOverCDP(braveState.cdpUrl);
     browser.on("disconnected", () => {
-      if (cachedBrowser === browser) cachedBrowser = null;
+      console.log("[Browser] Browser disconnected");
+      browserState.browser = null;
+      browserState.context = null;
     });
-    cachedBrowser = browser;
+
+    browserState.browser = browser;
     return browser;
   })().finally(() => {
-    connecting = null;
+    browserLaunching = null;
   });
 
-  return connecting;
+  return browserLaunching;
+}
+
+async function getBrowserContext(): Promise<BrowserContext> {
+  if (browserState.context) {
+    console.log("[Browser] Using existing browser context");
+    return browserState.context;
+  }
+
+  const browser = await getBrowser();
+  console.log("[Browser] Creating new incognito browser context...");
+
+  // Create an incognito context for anonymous browsing
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 720 },
+    userAgent:
+      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+  });
+
+  // Inject LinkedIn cookies if available from integrations
+  const linkedinLiAt = process.env.LINKEDIN_LI_AT;
+  const linkedinJsessionId = process.env.LINKEDIN_JSESSIONID;
+
+  if (linkedinLiAt && linkedinJsessionId) {
+    console.log("[Browser] Injecting LinkedIn cookies for auto-login...");
+    await context.addCookies([
+      {
+        name: "li_at",
+        value: linkedinLiAt,
+        domain: ".linkedin.com",
+        path: "/",
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+      },
+      {
+        name: "JSESSIONID",
+        value: linkedinJsessionId,
+        domain: ".linkedin.com",
+        path: "/",
+        httpOnly: true,
+        secure: true,
+        sameSite: "None",
+      },
+    ]);
+    console.log("[Browser] LinkedIn cookies injected successfully");
+  } else {
+    console.log("[Browser] No LinkedIn cookies found in environment variables");
+  }
+
+  console.log("[Browser] Context created");
+  browserState.context = context;
+  return context;
 }
 
 async function getActivePage(): Promise<Page> {
-  const browser = await connectBrowser();
-  const context = browser.contexts()[0] ?? (await browser.newContext());
+  console.log("[Browser] Getting active page...");
+  const context = await getBrowserContext();
+
   const pages = context.pages();
-  if (pages.length > 0) return pages[0];
-  return await context.newPage();
+  console.log(`[Browser] Found ${pages.length} page(s) in context`);
+
+  if (pages.length > 0) {
+    console.log(`[Browser] Using existing page at: ${pages[0].url()}`);
+    return pages[0];
+  }
+
+  console.log("[Browser] Creating new page...");
+  const newPage = await context.newPage();
+  console.log("[Browser] New page created");
+  return newPage;
 }
 
 function truncate(value: string, max = 12000): string {
@@ -128,16 +156,51 @@ function truncate(value: string, max = 12000): string {
 }
 
 export async function isBraveReachable(): Promise<boolean> {
-  return isCdpReachable(braveState.cdpUrl);
+  try {
+    const browser = await getBrowser();
+    return browser.isConnected();
+  } catch {
+    return false;
+  }
 }
 
 export async function browserNavigate(targetUrl: string) {
-  const page = await getActivePage();
-  await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 30000 });
-  return {
-    url: page.url(),
-    title: await page.title().catch(() => ""),
-  };
+  console.log(`[Browser] Navigating to: ${targetUrl}`);
+  try {
+    const page = await getActivePage();
+    console.log(`[Browser] Current URL before navigation: ${page.url()}`);
+
+    const response = await page.goto(targetUrl, {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
+    });
+
+    const finalUrl = page.url();
+    const title = await page.title().catch(() => "");
+
+    console.log(
+      `[Browser] Navigation complete. Final URL: ${finalUrl}, Title: ${title}`,
+    );
+
+    if (!response) {
+      throw new Error("Navigation failed - no response received");
+    }
+
+    if (!response.ok()) {
+      console.warn(
+        `[Browser] Navigation returned status: ${response.status()}`,
+      );
+    }
+
+    return {
+      url: finalUrl,
+      title,
+      status: response.status(),
+    };
+  } catch (error) {
+    console.error(`[Browser] Navigation error:`, error);
+    throw error;
+  }
 }
 
 export async function browserSnapshot() {

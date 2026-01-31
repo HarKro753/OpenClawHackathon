@@ -35,6 +35,7 @@ The backend exposes a `browser` tool backed by Brave + Playwright. Supported act
 - **Wait:** `browser action=act kind=wait timeMs=2000` (or `selector=` / `text=`)
 
 Notes:
+
 - The session persists via Brave user data dir.
 - For now, selectors should be provided directly (no ref-based snapshots).
 

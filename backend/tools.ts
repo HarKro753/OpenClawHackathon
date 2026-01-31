@@ -211,16 +211,25 @@ const browserTool: ToolDefinition = {
   execute: async (args) => {
     try {
       const action = String(args.action || "").trim();
+      console.log(`[Browser Tool] Action: ${action}, Args:`, args);
+
       if (action === "navigate") {
         const targetUrl = String(args.targetUrl || "").trim();
         if (!targetUrl) {
+          console.error("[Browser Tool] Navigate called without targetUrl");
           return {
             success: false,
             output: "",
             error: "targetUrl is required for navigate",
           };
         }
+
+        console.log(
+          `[Browser Tool] Calling browserNavigate with URL: ${targetUrl}`,
+        );
         const result = await browserNavigate(targetUrl);
+        console.log(`[Browser Tool] Navigate result:`, result);
+
         return { success: true, output: JSON.stringify(result, null, 2) };
       }
 
