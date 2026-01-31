@@ -8,7 +8,7 @@ interface IntegrationsStore {
   telegramBotToken?: string;
 }
 
-interface GogTokens {
+export interface GoogleTokens {
   access_token: string;
   refresh_token?: string;
   expires_in?: number;
@@ -20,7 +20,7 @@ interface GogTokens {
 }
 
 const integrationsPath = join(import.meta.dir, ".integrations.json");
-const gogTokensPath = join(import.meta.dir, ".gog-tokens.json");
+const googleTokensPath = join(import.meta.dir, ".google-tokens.json");
 
 function readJsonFile<T>(filePath: string): T | null {
   if (!existsSync(filePath)) return null;
@@ -51,9 +51,9 @@ export function loadIntegrationsFromDisk(): void {
     process.env.TELEGRAM_BOT_TOKEN = store.telegramBotToken;
   }
 
-  const gogTokens = readJsonFile<GogTokens>(gogTokensPath);
-  if (gogTokens?.access_token) {
-    setGogEnv(gogTokens);
+  const googleTokens = readJsonFile<GoogleTokens>(googleTokensPath);
+  if (googleTokens?.access_token) {
+    setGoogleEnv(googleTokens);
   }
 }
 
@@ -90,23 +90,25 @@ export function getLinkedInCookies(): {
   };
 }
 
-export function setGogTokens(tokens: GogTokens) {
-  writeJsonFile(gogTokensPath, tokens);
-  setGogEnv(tokens);
+export function setGoogleTokens(tokens: GoogleTokens) {
+  writeJsonFile(googleTokensPath, tokens);
+  setGoogleEnv(tokens);
 }
 
-export function getGogTokens(): GogTokens | null {
-  return readJsonFile<GogTokens>(gogTokensPath);
+export function getGoogleTokens(): GoogleTokens | null {
+  return readJsonFile<GoogleTokens>(googleTokensPath);
 }
 
 export function getIntegrationStatus() {
   const linkedin = getLinkedInCookies();
+  const googleTokens = getGoogleTokens();
   return {
     notion: { connected: Boolean(getNotionApiKey()) },
-    gog: {
+    google: {
       connected: Boolean(
-        getGogTokens()?.refresh_token || getGogTokens()?.access_token,
+        googleTokens?.refresh_token || googleTokens?.access_token
       ),
+      email: googleTokens?.email,
     },
     linkedin: {
       connected: Boolean(linkedin.liAt && linkedin.jsessionId),
@@ -117,8 +119,8 @@ export function getIntegrationStatus() {
   };
 }
 
-export function getGogTokensPath(): string {
-  return gogTokensPath;
+export function getGoogleTokensPath(): string {
+  return googleTokensPath;
 }
 
 export function setTelegramBotToken(token: string) {
@@ -132,23 +134,23 @@ export function getTelegramBotToken(): string | undefined {
   return process.env.TELEGRAM_BOT_TOKEN;
 }
 
-function setGogEnv(tokens: GogTokens) {
-  process.env.GOG_ACCESS_TOKEN = tokens.access_token;
+function setGoogleEnv(tokens: GoogleTokens) {
+  process.env.GOOGLE_ACCESS_TOKEN = tokens.access_token;
   if (tokens.refresh_token) {
-    process.env.GOG_REFRESH_TOKEN = tokens.refresh_token;
+    process.env.GOOGLE_REFRESH_TOKEN = tokens.refresh_token;
   }
   if (tokens.expires_in) {
-    process.env.GOG_TOKEN_EXPIRES_AT = String(
-      tokens.created_at + tokens.expires_in * 1000,
+    process.env.GOOGLE_TOKEN_EXPIRES_AT = String(
+      tokens.created_at + tokens.expires_in * 1000
     );
   }
   if (tokens.token_type) {
-    process.env.GOG_TOKEN_TYPE = tokens.token_type;
+    process.env.GOOGLE_TOKEN_TYPE = tokens.token_type;
   }
   if (tokens.scope) {
-    process.env.GOG_TOKEN_SCOPE = tokens.scope;
+    process.env.GOOGLE_TOKEN_SCOPE = tokens.scope;
   }
   if (tokens.email) {
-    process.env.GOG_ACCOUNT = tokens.email;
+    process.env.GOOGLE_ACCOUNT = tokens.email;
   }
 }

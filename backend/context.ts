@@ -206,10 +206,18 @@ export function buildMessages(
   baseSystemPrompt: string,
   toolsMessage: string | null,
   conversationHistory: OpenAI.Chat.ChatCompletionMessageParam[],
+  systemContext?: string,
 ): OpenAI.Chat.ChatCompletionMessageParam[] {
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: "system", content: baseSystemPrompt },
   ];
+
+  if (systemContext) {
+    messages.push({
+      role: "system",
+      content: systemContext,
+    });
+  }
 
   if (toolsMessage) {
     messages.push({
@@ -259,6 +267,7 @@ export class ContextManager {
   buildContextMessages(
     selectedSkills: Skill[],
     conversationHistory: OpenAI.Chat.ChatCompletionMessageParam[],
+    systemContext?: string,
   ): OpenAI.Chat.ChatCompletionMessageParam[] {
     const toolsMessage = buildToolsMessage(selectedSkills);
 
@@ -276,6 +285,7 @@ export class ContextManager {
       this.baseSystemPrompt,
       toolsMessage,
       conversationHistory,
+      systemContext,
     );
   }
 }

@@ -15,7 +15,7 @@ import { Badge } from "@/components/ui/badge";
 
 interface IntegrationStatus {
   notion: { connected: boolean };
-  gog: { connected: boolean };
+  google: { connected: boolean; email?: string };
   linkedin: { connected: boolean };
   telegram: { connected: boolean };
 }
@@ -158,29 +158,34 @@ export default function IntegrationsPage() {
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-xl">Google (gog)</CardTitle>
+                  <CardTitle className="text-xl">Google</CardTitle>
                   <Badge
-                    variant={status?.gog.connected ? "success" : "secondary"}
+                    variant={status?.google?.connected ? "success" : "secondary"}
                   >
-                    {status?.gog.connected ? "Connected" : "Not connected"}
+                    {status?.google?.connected ? "Connected" : "Not connected"}
                   </Badge>
                 </div>
               </CardHeader>
               <CardContent>
                 <CardDescription>
-                  Authenticate with Google so gog commands can access Gmail,
-                  Calendar, Drive, Docs, Sheets, and Contacts.
+                  Authenticate with Google to access Gmail, Calendar, Sheets,
+                  and Docs.
                 </CardDescription>
+                {status?.google?.email && (
+                  <p className="mt-2 text-sm font-medium text-foreground">
+                    Connected as: {status.google.email}
+                  </p>
+                )}
                 <Button
                   onClick={() => {
-                    window.location.href = `${BACKEND_URL}/api/auth/gog/start`;
+                    window.location.href = `${BACKEND_URL}/api/auth/google/start`;
                   }}
                   className="mt-5"
                 >
-                  Connect Google
+                  {status?.google?.connected ? "Reconnect Google" : "Connect Google"}
                 </Button>
                 <p className="mt-3 text-xs text-muted-foreground">
-                  You will be redirected to Google OAuth in a new page.
+                  You will be redirected to Google OAuth.
                 </p>
               </CardContent>
             </Card>
