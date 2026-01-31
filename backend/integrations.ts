@@ -3,6 +3,8 @@ import { join } from "path";
 
 interface IntegrationsStore {
   notionApiKey?: string;
+  linkedinLiAt?: string;
+  linkedinJsessionId?: string;
 }
 
 interface GogTokens {
@@ -38,6 +40,12 @@ export function loadIntegrationsFromDisk(): void {
   if (store?.notionApiKey) {
     process.env.NOTION_API_KEY = store.notionApiKey;
   }
+  if (store?.linkedinLiAt) {
+    process.env.LINKEDIN_LI_AT = store.linkedinLiAt;
+  }
+  if (store?.linkedinJsessionId) {
+    process.env.LINKEDIN_JSESSIONID = store.linkedinJsessionId;
+  }
 
   const gogTokens = readJsonFile<GogTokens>(gogTokensPath);
   if (gogTokens?.access_token) {
@@ -56,6 +64,28 @@ export function getNotionApiKey(): string | undefined {
   return process.env.NOTION_API_KEY;
 }
 
+export function setLinkedInCookies(params: {
+  liAt: string;
+  jsessionId: string;
+}) {
+  const store = readJsonFile<IntegrationsStore>(integrationsPath) || {};
+  store.linkedinLiAt = params.liAt;
+  store.linkedinJsessionId = params.jsessionId;
+  writeJsonFile(integrationsPath, store);
+  process.env.LINKEDIN_LI_AT = params.liAt;
+  process.env.LINKEDIN_JSESSIONID = params.jsessionId;
+}
+
+export function getLinkedInCookies(): {
+  liAt?: string;
+  jsessionId?: string;
+} {
+  return {
+    liAt: process.env.LINKEDIN_LI_AT,
+    jsessionId: process.env.LINKEDIN_JSESSIONID,
+  };
+}
+
 export function setGogTokens(tokens: GogTokens) {
   writeJsonFile(gogTokensPath, tokens);
   setGogEnv(tokens);
@@ -66,12 +96,16 @@ export function getGogTokens(): GogTokens | null {
 }
 
 export function getIntegrationStatus() {
+  const linkedin = getLinkedInCookies();
   return {
     notion: { connected: Boolean(getNotionApiKey()) },
     gog: {
       connected: Boolean(
         getGogTokens()?.refresh_token || getGogTokens()?.access_token,
       ),
+    },
+    linkedin: {
+      connected: Boolean(linkedin.liAt && linkedin.jsessionId),
     },
   };
 }

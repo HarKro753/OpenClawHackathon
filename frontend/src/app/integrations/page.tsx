@@ -16,6 +16,7 @@ import { Badge } from "@/components/ui/badge";
 interface IntegrationStatus {
   notion: { connected: boolean };
   gog: { connected: boolean };
+  linkedin: { connected: boolean };
 }
 
 export default function IntegrationsPage() {
@@ -23,6 +24,10 @@ export default function IntegrationsPage() {
   const [notionKey, setNotionKey] = useState("");
   const [savingNotion, setSavingNotion] = useState(false);
   const [notionMessage, setNotionMessage] = useState<string | null>(null);
+  const [linkedinLiAt, setLinkedinLiAt] = useState("");
+  const [linkedinJsession, setLinkedinJsession] = useState("");
+  const [savingLinkedin, setSavingLinkedin] = useState(false);
+  const [linkedinMessage, setLinkedinMessage] = useState<string | null>(null);
 
   const fetchStatus = async () => {
     try {
@@ -71,6 +76,40 @@ export default function IntegrationsPage() {
     }
   };
 
+  const saveLinkedinCookies = async () => {
+    if (!linkedinLiAt.trim() || !linkedinJsession.trim()) return;
+    setSavingLinkedin(true);
+    setLinkedinMessage(null);
+
+    try {
+      const response = await fetch(
+        "http://localhost:3001/api/integrations/linkedin",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            liAt: linkedinLiAt.trim(),
+            jsessionId: linkedinJsession.trim(),
+          }),
+        },
+      );
+
+      if (!response.ok) {
+        const error = await response.json();
+        setLinkedinMessage(error?.error || "Failed to save LinkedIn cookies.");
+      } else {
+        setLinkedinMessage("LinkedIn cookies saved.");
+        setLinkedinLiAt("");
+        setLinkedinJsession("");
+        fetchStatus();
+      }
+    } catch {
+      setLinkedinMessage("Failed to save LinkedIn cookies.");
+    } finally {
+      setSavingLinkedin(false);
+    }
+  };
+
   return (
     <div className="flex min-h-screen flex-col">
       <Navbar />
@@ -91,9 +130,7 @@ export default function IntegrationsPage() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl">Google (gog)</CardTitle>
                   <Badge
-                    variant={
-                      status?.gog.connected ? "success" : "secondary"
-                    }
+                    variant={status?.gog.connected ? "success" : "secondary"}
                   >
                     {status?.gog.connected ? "Connected" : "Not connected"}
                   </Badge>
@@ -124,9 +161,7 @@ export default function IntegrationsPage() {
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-xl">Notion</CardTitle>
                   <Badge
-                    variant={
-                      status?.notion.connected ? "success" : "secondary"
-                    }
+                    variant={status?.notion.connected ? "success" : "secondary"}
                   >
                     {status?.notion.connected ? "Connected" : "Not connected"}
                   </Badge>
@@ -161,6 +196,70 @@ export default function IntegrationsPage() {
                   {notionMessage && (
                     <p className="text-xs text-muted-foreground">
                       {notionMessage}
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-xl">LinkedIn</CardTitle>
+                  <Badge
+                    variant={
+                      status?.linkedin.connected ? "success" : "secondary"
+                    }
+                  >
+                    {status?.linkedin.connected ? "Connected" : "Not connected"}
+                  </Badge>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <CardDescription>
+                  Open LinkedIn in a new tab and paste your session cookies to
+                  enable automation.
+                </CardDescription>
+                <Button
+                  onClick={() =>
+                    window.open(
+                      "https://www.linkedin.com",
+                      "_blank",
+                      "noopener,noreferrer",
+                    )
+                  }
+                  className="mt-5"
+                >
+                  Open LinkedIn
+                </Button>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Provide both li_at and JSESSIONID from your LinkedIn cookies.
+                </p>
+                <div className="mt-4 flex flex-col gap-3">
+                  <Input
+                    type="password"
+                    value={linkedinLiAt}
+                    onChange={(event) => setLinkedinLiAt(event.target.value)}
+                    placeholder="li_at cookie"
+                  />
+                  <Input
+                    type="password"
+                    value={linkedinJsession}
+                    onChange={(event) =>
+                      setLinkedinJsession(event.target.value)
+                    }
+                    placeholder="JSESSIONID cookie"
+                  />
+                  <Button
+                    onClick={saveLinkedinCookies}
+                    disabled={savingLinkedin}
+                    variant="secondary"
+                  >
+                    {savingLinkedin ? "Saving..." : "Save LinkedIn Cookies"}
+                  </Button>
+                  {linkedinMessage && (
+                    <p className="text-xs text-muted-foreground">
+                      {linkedinMessage}
                     </p>
                   )}
                 </div>

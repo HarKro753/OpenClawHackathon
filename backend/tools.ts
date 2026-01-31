@@ -3,6 +3,7 @@ import { existsSync, writeFileSync, unlinkSync } from "fs";
 import { join } from "path";
 import { tmpdir } from "os";
 import { getGogTokens } from "./integrations.js";
+import { browserAct, browserNavigate, browserSnapshot } from "./browser.js";
 
 // ============================================================================
 // Tool Definitions
@@ -155,6 +156,120 @@ const bashCommandTool: ToolDefinition = {
   },
 };
 
+// ==========================================================================
+// Browser Automation Tool (Brave via Playwright)
+// ==========================================================================
+
+const browserTool: ToolDefinition = {
+  name: "browser",
+  tool: {
+    type: "function",
+    function: {
+      name: "browser",
+      description:
+        "Control a Brave browser session for automation (navigate, snapshot, act).",
+      parameters: {
+        type: "object",
+        properties: {
+          action: {
+            type: "string",
+            description: "Action to perform: navigate, snapshot, act",
+          },
+          targetUrl: {
+            type: "string",
+            description: "URL to navigate to when action=navigate",
+          },
+          kind: {
+            type: "string",
+            description: "Action kind when action=act: click, type, wait",
+          },
+          selector: {
+            type: "string",
+            description: "CSS/Playwright selector for act",
+          },
+          text: {
+            type: "string",
+            description: "Visible text for act",
+          },
+          input: {
+            type: "string",
+            description: "Text input for type",
+          },
+          timeMs: {
+            type: "number",
+            description: "Time to wait for wait action",
+          },
+          submit: {
+            type: "boolean",
+            description: "Press Enter after type",
+          },
+        },
+        required: ["action"],
+      },
+    },
+  },
+  execute: async (args) => {
+    try {
+      const action = String(args.action || "").trim();
+      if (action === "navigate") {
+        const targetUrl = String(args.targetUrl || "").trim();
+        if (!targetUrl) {
+          return {
+            success: false,
+            output: "",
+            error: "targetUrl is required for navigate",
+          };
+        }
+        const result = await browserNavigate(targetUrl);
+        return { success: true, output: JSON.stringify(result, null, 2) };
+      }
+
+      if (action === "snapshot") {
+        const result = await browserSnapshot();
+        return { success: true, output: JSON.stringify(result, null, 2) };
+      }
+
+      if (action === "act") {
+        const kind = String(args.kind || "").trim() as
+          | "click"
+          | "type"
+          | "wait";
+        if (!kind) {
+          return {
+            success: false,
+            output: "",
+            error: "kind is required for act",
+          };
+        }
+        const result = await browserAct({
+          kind,
+          selector:
+            typeof args.selector === "string" ? args.selector : undefined,
+          text: typeof args.text === "string" ? args.text : undefined,
+          input: typeof args.input === "string" ? args.input : undefined,
+          timeMs: typeof args.timeMs === "number" ? args.timeMs : undefined,
+          submit: typeof args.submit === "boolean" ? args.submit : undefined,
+        });
+        return { success: true, output: JSON.stringify(result, null, 2) };
+      }
+
+      return {
+        success: false,
+        output: "",
+        error: `Unsupported action: ${action}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        output: "",
+        error: `Browser action failed: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+      };
+    }
+  },
+};
+
 // ============================================================================
 // Tool Registry
 // ============================================================================
@@ -162,6 +277,7 @@ const bashCommandTool: ToolDefinition = {
 const toolRegistry: Map<string, ToolDefinition> = new Map();
 
 toolRegistry.set(bashCommandTool.name, bashCommandTool);
+toolRegistry.set(browserTool.name, browserTool);
 
 export function getToolDefinitions(): OpenAI.Chat.ChatCompletionTool[] {
   return Array.from(toolRegistry.values()).map((t) => t.tool);

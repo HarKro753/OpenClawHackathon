@@ -7,6 +7,7 @@ import {
   loadIntegrationsFromDisk,
   setNotionApiKey,
   setGogTokens,
+  setLinkedInCookies,
 } from "./integrations.js";
 import {
   runAgentLoopStreaming,
@@ -41,7 +42,7 @@ const pendingGogStates = new Set<string>();
 const contextManager = new ContextManager({
   openaiApiKey: process.env.OPENAI_API_KEY!,
   skillsDir: join(import.meta.dir, "..", "skills"),
-  skillFolders: ["gog", "notion", "github"],
+  skillFolders: ["gog", "notion", "github", "linkedin"],
   systemPromptPath: join(import.meta.dir, "system-prompt.txt"),
 });
 
@@ -91,6 +92,29 @@ const server = Bun.serve({
       }
 
       setNotionApiKey(body.apiKey.trim());
+      return new Response(JSON.stringify({ success: true }), { headers });
+    }
+
+    if (
+      url.pathname === "/api/integrations/linkedin" &&
+      req.method === "POST"
+    ) {
+      const body = (await req.json()) as {
+        liAt?: string;
+        jsessionId?: string;
+      };
+      const liAt = body.liAt?.trim();
+      const jsessionId = body.jsessionId?.trim();
+      if (!liAt || !jsessionId) {
+        return new Response(
+          JSON.stringify({
+            error: "LinkedIn li_at and JSESSIONID are required.",
+          }),
+          { status: 400, headers },
+        );
+      }
+
+      setLinkedInCookies({ liAt, jsessionId });
       return new Response(JSON.stringify({ success: true }), { headers });
     }
 
