@@ -50,7 +50,7 @@ async function getBrowser(): Promise<Browser> {
 
     const browser = await chromium.launch({
       executablePath,
-      headless: false,
+      headless: true,
       args: [
         "--disable-blink-features=AutomationControlled",
         "--disable-features=IsolateOrigins,site-per-process",
@@ -331,4 +331,20 @@ export async function browserAct(params: {
   }
 
   throw new Error(`Unsupported act kind: ${params.kind}`);
+}
+
+export async function closeBrowser(): Promise<void> {
+  console.log("[Browser] Closing browser...");
+  
+  if (browserState.context) {
+    await browserState.context.close().catch(() => {});
+    browserState.context = null;
+  }
+  
+  if (browserState.browser) {
+    await browserState.browser.close().catch(() => {});
+    browserState.browser = null;
+  }
+  
+  console.log("[Browser] Browser closed");
 }
