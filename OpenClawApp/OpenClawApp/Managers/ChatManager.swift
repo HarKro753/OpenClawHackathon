@@ -31,7 +31,7 @@ final class ChatManager {
     var input: String = ""
     var isLoading = false
 
-    private let baseURL = URL(string: "http://localhost:3001")!
+    private let baseURL = URL(string: "http://192.168.178.141:3001")!
 
     func send() {
         Task { await sendMessage() }

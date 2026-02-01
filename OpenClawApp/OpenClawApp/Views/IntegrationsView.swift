@@ -40,7 +40,7 @@ struct IntegrationsView: View {
                         name: "Google",
                         isConnected: integrationsManager.status?.gog.connected == true
                     ) {
-                        if let url = URL(string: "http://localhost:3001/api/auth/google/start") {
+                        if let url = URL(string: "http://192.168.178.141:3001/api/auth/google/start") {
                             openURL(url)
                         }
                         // Refresh status after a delay to check if connected
@@ -50,7 +50,7 @@ struct IntegrationsView: View {
                         }
                     }
 
-                    // LinkedIn
+                    // LinkedIn - opens in Safari View Controller
                     IntegrationButton(
                         icon: "linkedin",
                         name: "LinkedIn",
@@ -97,13 +97,15 @@ struct IntegrationsView: View {
                     }
                 }
             }
-            .fullScreenCover(isPresented: $showBrowser, onDismiss: handleBrowserDismiss) {
+            .sheet(isPresented: $showBrowser, onDismiss: handleBrowserDismiss) {
                 if let url = browserURL, let integration = currentIntegration {
                     InAppBrowserView(
                         url: url,
                         integration: integration,
                         onComplete: handleBrowserComplete
                     )
+                    .presentationDetents([.large])
+                    .presentationDragIndicator(.visible)
                 }
             }
             .alert("Enter Notion API Key", isPresented: $showNotionAPIKeyAlert) {
@@ -209,7 +211,7 @@ private struct IntegrationButton: View {
     }
 }
 
-// MARK: - In-App Browser View
+// MARK: - In-App Browser View (using WKWebView with Cookie Capture)
 
 struct InAppBrowserView: View {
     let url: URL
@@ -217,14 +219,47 @@ struct InAppBrowserView: View {
     let onComplete: (IntegrationType, [String: String]?) -> Void
 
     @Environment(\.dismiss) private var dismiss
+    @State private var isLoading = true
+    @State private var loadError: String?
+    @State private var pageTitle = ""
 
     var body: some View {
         NavigationStack {
-            WebView(url: url, integration: integration, onComplete: { cookies in
-                onComplete(integration, cookies)
-                dismiss()
-            })
-            .navigationTitle(integrationTitle)
+            ZStack {
+                LinkedInWebView(
+                    url: url,
+                    isLoading: $isLoading,
+                    loadError: $loadError,
+                    pageTitle: $pageTitle,
+                    onCookiesCaptured: { cookies in
+                        onComplete(integration, cookies)
+                        dismiss()
+                    }
+                )
+                .ignoresSafeArea(edges: .bottom)
+                
+                if isLoading {
+                    ProgressView("Loading...")
+                        .padding()
+                        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: 12))
+                }
+                
+                if let error = loadError {
+                    VStack(spacing: 16) {
+                        Image(systemName: "wifi.exclamationmark")
+                            .font(.system(size: 48))
+                            .foregroundStyle(.secondary)
+                        Text("Failed to Load")
+                            .font(.headline)
+                        Text(error)
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .multilineTextAlignment(.center)
+                    }
+                    .padding()
+                }
+            }
+            .navigationTitle(pageTitle.isEmpty ? "LinkedIn" : pageTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
@@ -235,94 +270,147 @@ struct InAppBrowserView: View {
             }
         }
     }
-
-    private var integrationTitle: String {
-        switch integration {
-        case .google: return "Google"
-        case .linkedin: return "LinkedIn"
-        case .notion: return "Notion"
-        case .github: return "GitHub"
-        }
-    }
 }
 
-// MARK: - WebView
+// MARK: - WKWebView Wrapper with Cookie Capture
 
-struct WebView: UIViewRepresentable {
+struct LinkedInWebView: UIViewRepresentable {
     let url: URL
-    let integration: IntegrationType
-    let onComplete: ([String: String]?) -> Void
-
+    @Binding var isLoading: Bool
+    @Binding var loadError: String?
+    @Binding var pageTitle: String
+    let onCookiesCaptured: ([String: String]) -> Void
+    
     func makeUIView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
+        
+        // Use default data store for cookie persistence
         configuration.websiteDataStore = .default()
         
-        // Allow JavaScript and inline media playback
+        // Set preferences
         let preferences = WKWebpagePreferences()
         preferences.allowsContentJavaScript = true
         configuration.defaultWebpagePreferences = preferences
+        
+        // Process pool - use a shared one to help with networking
+        configuration.processPool = WKProcessPool()
         
         let webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = context.coordinator
         webView.allowsBackForwardNavigationGestures = true
         
-        // Set a desktop-like user agent to avoid mobile restrictions
-        webView.customUserAgent = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+        // Use iOS Safari mobile user agent (more compatible with LinkedIn mobile)
+        webView.customUserAgent = "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1"
         
-        webView.load(URLRequest(url: url))
+        // Load the URL with cache policy that bypasses proxy issues
+        var request = URLRequest(url: url)
+        request.cachePolicy = .reloadIgnoringLocalAndRemoteCacheData
+        webView.load(request)
+        
         return webView
     }
-
-    func updateUIView(_ uiView: WKWebView, context: Context) {}
-
+    
+    func updateUIView(_ webView: WKWebView, context: Context) {}
+    
     func makeCoordinator() -> Coordinator {
-        Coordinator(integration: integration, onComplete: onComplete)
+        Coordinator(
+            isLoading: $isLoading,
+            loadError: $loadError,
+            pageTitle: $pageTitle,
+            onCookiesCaptured: onCookiesCaptured
+        )
     }
-
+    
     class Coordinator: NSObject, WKNavigationDelegate {
-        let integration: IntegrationType
-        let onComplete: ([String: String]?) -> Void
-
-        init(integration: IntegrationType, onComplete: @escaping ([String: String]?) -> Void) {
-            self.integration = integration
-            self.onComplete = onComplete
+        @Binding var isLoading: Bool
+        @Binding var loadError: String?
+        @Binding var pageTitle: String
+        let onCookiesCaptured: ([String: String]) -> Void
+        
+        init(
+            isLoading: Binding<Bool>,
+            loadError: Binding<String?>,
+            pageTitle: Binding<String>,
+            onCookiesCaptured: @escaping ([String: String]) -> Void
+        ) {
+            _isLoading = isLoading
+            _loadError = loadError
+            _pageTitle = pageTitle
+            self.onCookiesCaptured = onCookiesCaptured
         }
-
-        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
-            guard let url = webView.url else { return }
-
-            switch integration {
-            case .linkedin:
-                // LinkedIn redirects to feed after successful login
-                if url.host == "www.linkedin.com" && (url.path == "/feed" || url.path == "/feed/") {
-                    extractLinkedInCookies(from: webView)
-                }
-            default:
-                break
+        
+        func webView(_ webView: WKWebView, didStartProvisionalNavigation navigation: WKNavigation!) {
+            DispatchQueue.main.async {
+                self.isLoading = true
+                self.loadError = nil
             }
         }
-
-        private func extractLinkedInCookies(from webView: WKWebView) {
+        
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            DispatchQueue.main.async {
+                self.isLoading = false
+                self.pageTitle = webView.title ?? ""
+            }
+            
+            // Check cookies after each page load
+            checkForLinkedInCookies(webView: webView)
+        }
+        
+        func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: Error) {
+            handleError(error)
+        }
+        
+        func webView(_ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: Error) {
+            handleError(error)
+        }
+        
+        private func handleError(_ error: Error) {
+            DispatchQueue.main.async {
+                self.isLoading = false
+                // Ignore cancellation errors (user navigated away)
+                if (error as NSError).code != NSURLErrorCancelled {
+                    self.loadError = error.localizedDescription
+                }
+            }
+        }
+        
+        private func checkForLinkedInCookies(webView: WKWebView) {
             let cookieStore = webView.configuration.websiteDataStore.httpCookieStore
-            cookieStore.getAllCookies { cookies in
-                var result: [String: String] = [:]
+            
+            cookieStore.getAllCookies { [weak self] cookies in
+                var liAt: String?
+                var jsessionId: String?
+                
                 for cookie in cookies {
+                    // LinkedIn session cookies
                     if cookie.domain.contains("linkedin.com") {
                         if cookie.name == "li_at" {
-                            result["liAt"] = cookie.value
+                            liAt = cookie.value
+                            print("[LinkedIn] Captured li_at cookie")
                         } else if cookie.name == "JSESSIONID" {
-                            result["jsessionId"] = cookie.value.replacingOccurrences(of: "\"", with: "")
+                            // JSESSIONID often has quotes around it
+                            jsessionId = cookie.value.replacingOccurrences(of: "\"", with: "")
+                            print("[LinkedIn] Captured JSESSIONID cookie")
                         }
                     }
                 }
-
-                if !result.isEmpty {
-                    self.onComplete(result)
+                
+                // If we have both cookies, the user is logged in!
+                if let liAt = liAt, let jsessionId = jsessionId {
+                    print("[LinkedIn] User is logged in! Sending cookies back.")
+                    DispatchQueue.main.async {
+                        self?.onCookiesCaptured([
+                            "liAt": liAt,
+                            "jsessionId": jsessionId
+                        ])
+                    }
                 }
             }
         }
     }
 }
+
+
 
 #Preview {
     IntegrationsView()

@@ -28,7 +28,7 @@ final class IntegrationsManager {
     var savingLinkedin = false
     var linkedinMessage: String?
 
-    private let baseURL = URL(string: "http://localhost:3001")!
+    private let baseURL = URL(string: "http://192.168.178.141:3001")!
 
     @MainActor
     func fetchStatus() async {
