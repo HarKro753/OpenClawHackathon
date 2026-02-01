@@ -203,6 +203,7 @@ const server = Bun.serve({
         }
 
         const scopes = [
+          "https://www.googleapis.com/auth/userinfo.email",
           "https://www.googleapis.com/auth/gmail.modify",
           "https://www.googleapis.com/auth/gmail.send",
           "https://www.googleapis.com/auth/calendar",
@@ -353,11 +354,32 @@ const server = Bun.serve({
           created_at: Date.now(),
         });
 
-        return new Response(null, {
-          status: 302,
+        // Return a simple HTML success page
+        const successHtml = `
+          <!DOCTYPE html>
+          <html>
+            <head>
+              <title>Google Connected</title>
+              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <style>
+                body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f5f5f5; }
+                .container { text-align: center; padding: 40px; background: white; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+                h1 { color: #34a853; margin-bottom: 16px; }
+                p { color: #666; }
+              </style>
+            </head>
+            <body>
+              <div class="container">
+                <h1>✓ Google Connected!</h1>
+                <p>You can close this window and return to the app.</p>
+              </div>
+            </body>
+          </html>
+        `;
+        return new Response(successHtml, {
           headers: {
             ...headers,
-            Location: "http://localhost:3000/integrations?google=connected",
+            "Content-Type": "text/html",
           },
         });
       } catch (error) {

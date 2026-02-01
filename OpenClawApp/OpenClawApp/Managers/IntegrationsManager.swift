@@ -16,6 +16,7 @@ final class IntegrationsManager {
         let notion: ConnectionStatus
         let gog: ConnectionStatus
         let linkedin: ConnectionStatus
+        let github: ConnectionStatus?
     }
 
     var status: IntegrationStatus?
