@@ -215,6 +215,17 @@ Get spreadsheet metadata including title and list of sheets with their names and
 
 ## Docs
 
+### google_docs_create
+
+Create a new Google Doc with an optional initial content. Returns the document ID and URL.
+
+**Parameters:**
+
+- `title` (required): The title of the new document
+- `content` (optional): Initial text content for the document
+
+**Example:** Create a document titled "Meeting Notes" with some content, and the tool will return the document URL for sharing.
+
 ### google_docs_get
 
 Get the content of a Google Doc as plain text. Returns the document title and body text.

@@ -16,6 +16,7 @@ import {
   sheetsAppend,
   sheetsClear,
   sheetsMetadata,
+  docsCreate,
   docsGet,
   docsExport,
 } from "./google-api.js";
@@ -1003,6 +1004,57 @@ export const googleSheetsMetadataTool: ToolDefinition = {
 // Docs Tools
 // ============================================================================
 
+export const googleDocsCreateTool: ToolDefinition = {
+  name: "google_docs_create",
+  tool: {
+    type: "function",
+    function: {
+      name: "google_docs_create",
+      description:
+        "Create a new Google Doc with an optional initial content. Returns the document ID and URL.",
+      parameters: {
+        type: "object",
+        properties: {
+          title: {
+            type: "string",
+            description: "The title of the new document",
+          },
+          content: {
+            type: "string",
+            description: "Optional initial text content for the document",
+          },
+        },
+        required: ["title"],
+      },
+    },
+  },
+  execute: async (args): Promise<ToolResult> => {
+    try {
+      const title = args.title as string;
+      const content = args.content as string | undefined;
+
+      if (!title) {
+        return { success: false, output: "", error: "title is required" };
+      }
+
+      const doc = await docsCreate(title, content);
+
+      const docUrl = `https://docs.google.com/document/d/${doc.documentId}/edit`;
+
+      return {
+        success: true,
+        output: `Document created successfully!\nTitle: ${doc.title}\nID: ${doc.documentId}\nURL: ${docUrl}${content ? `\n\nContent written: ${content.length} characters` : ""}`,
+      };
+    } catch (error) {
+      return {
+        success: false,
+        output: "",
+        error: error instanceof Error ? error.message : String(error),
+      };
+    }
+  },
+};
+
 export const googleDocsGetTool: ToolDefinition = {
   name: "google_docs_get",
   tool: {
@@ -1130,6 +1182,7 @@ export const googleTools: ToolDefinition[] = [
   googleSheetsClearTool,
   googleSheetsMetadataTool,
   // Docs
+  googleDocsCreateTool,
   googleDocsGetTool,
   googleDocsExportTool,
 ];

@@ -196,9 +196,7 @@ const server = Bun.serve({
         );
         const credentials = clientSecret.installed || clientSecret.web;
         const clientId = credentials?.client_id;
-        const redirectUri =
-          process.env.GOOGLE_REDIRECT_URI ||
-          "http://localhost:3001/api/auth/google/callback";
+        const redirectUri = "http://localhost:3001/api/auth/google/callback";
 
         if (!clientId) {
           return new Response(
@@ -277,9 +275,7 @@ const server = Bun.serve({
         const credentials = clientSecret.installed || clientSecret.web;
         const clientId = credentials?.client_id;
         const clientSecretValue = credentials?.client_secret;
-        const redirectUri =
-          process.env.GOOGLE_REDIRECT_URI ||
-          "http://localhost:3001/api/auth/google/callback";
+        const redirectUri = "http://localhost:3001/api/auth/google/callback";
 
         if (!clientId || !clientSecretValue) {
           return new Response(

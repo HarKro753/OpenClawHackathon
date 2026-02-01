@@ -1,6 +1,7 @@
 import type OpenAI from "openai";
 import { browserAct, browserNavigate, browserSnapshot } from "./browser.js";
 import { googleTools } from "./google-tools.js";
+import { getLinkedInCookies, getNotionApiKey } from "./integrations.js";
 
 // ============================================================================
 // Tool Definitions
@@ -24,14 +25,15 @@ export interface ToolResult {
 
 async function executeBashCommand(command: string): Promise<ToolResult> {
   try {
+    const linkedin = getLinkedInCookies();
     const proc = Bun.spawn(["bash", "-c", command], {
       stdout: "pipe",
       stderr: "pipe",
       env: {
         ...process.env,
-        LINKEDIN_LI_AT: process.env.LINKEDIN_LI_AT,
-        LINKEDIN_JSESSIONID: process.env.LINKEDIN_JSESSIONID,
-        NOTION_API_KEY: process.env.NOTION_API_KEY,
+        LINKEDIN_LI_AT: linkedin.liAt ?? "",
+        LINKEDIN_JSESSIONID: linkedin.jsessionId ?? "",
+        NOTION_API_KEY: getNotionApiKey() ?? "",
       },
     });
 

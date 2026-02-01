@@ -1,6 +1,10 @@
 import { readFileSync, writeFileSync, existsSync } from "fs";
 import { join } from "path";
 
+// ============================================================================
+// Types
+// ============================================================================
+
 interface IntegrationsStore {
   notionApiKey?: string;
   linkedinLiAt?: string;
@@ -19,8 +23,23 @@ export interface GoogleTokens {
   created_at: number;
 }
 
+// ============================================================================
+// In-Memory Store (replaces process.env usage)
+// ============================================================================
+
+let integrationsCache: IntegrationsStore = {};
+let googleTokensCache: GoogleTokens | null = null;
+
+// ============================================================================
+// File Paths
+// ============================================================================
+
 const integrationsPath = join(import.meta.dir, ".integrations.json");
 const googleTokensPath = join(import.meta.dir, ".google-tokens.json");
+
+// ============================================================================
+// File I/O Helpers
+// ============================================================================
 
 function readJsonFile<T>(filePath: string): T | null {
   if (!existsSync(filePath)) return null;
@@ -36,48 +55,46 @@ function writeJsonFile<T>(filePath: string, data: T) {
   writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
+// ============================================================================
+// Initialization
+// ============================================================================
+
 export function loadIntegrationsFromDisk(): void {
   const store = readJsonFile<IntegrationsStore>(integrationsPath);
-  if (store?.notionApiKey) {
-    process.env.NOTION_API_KEY = store.notionApiKey;
-  }
-  if (store?.linkedinLiAt) {
-    process.env.LINKEDIN_LI_AT = store.linkedinLiAt;
-  }
-  if (store?.linkedinJsessionId) {
-    process.env.LINKEDIN_JSESSIONID = store.linkedinJsessionId;
-  }
-  if (store?.telegramBotToken) {
-    process.env.TELEGRAM_BOT_TOKEN = store.telegramBotToken;
+  if (store) {
+    integrationsCache = store;
   }
 
   const googleTokens = readJsonFile<GoogleTokens>(googleTokensPath);
   if (googleTokens?.access_token) {
-    setGoogleEnv(googleTokens);
+    googleTokensCache = googleTokens;
   }
 }
 
+// ============================================================================
+// Notion Integration
+// ============================================================================
+
 export function setNotionApiKey(apiKey: string) {
-  const store = readJsonFile<IntegrationsStore>(integrationsPath) || {};
-  store.notionApiKey = apiKey;
-  writeJsonFile(integrationsPath, store);
-  process.env.NOTION_API_KEY = apiKey;
+  integrationsCache.notionApiKey = apiKey;
+  writeJsonFile(integrationsPath, integrationsCache);
 }
 
 export function getNotionApiKey(): string | undefined {
-  return process.env.NOTION_API_KEY;
+  return integrationsCache.notionApiKey;
 }
+
+// ============================================================================
+// LinkedIn Integration
+// ============================================================================
 
 export function setLinkedInCookies(params: {
   liAt: string;
   jsessionId: string;
 }) {
-  const store = readJsonFile<IntegrationsStore>(integrationsPath) || {};
-  store.linkedinLiAt = params.liAt;
-  store.linkedinJsessionId = params.jsessionId;
-  writeJsonFile(integrationsPath, store);
-  process.env.LINKEDIN_LI_AT = params.liAt;
-  process.env.LINKEDIN_JSESSIONID = params.jsessionId;
+  integrationsCache.linkedinLiAt = params.liAt;
+  integrationsCache.linkedinJsessionId = params.jsessionId;
+  writeJsonFile(integrationsPath, integrationsCache);
 }
 
 export function getLinkedInCookies(): {
@@ -85,19 +102,44 @@ export function getLinkedInCookies(): {
   jsessionId?: string;
 } {
   return {
-    liAt: process.env.LINKEDIN_LI_AT,
-    jsessionId: process.env.LINKEDIN_JSESSIONID,
+    liAt: integrationsCache.linkedinLiAt,
+    jsessionId: integrationsCache.linkedinJsessionId,
   };
 }
 
+// ============================================================================
+// Google Integration
+// ============================================================================
+
 export function setGoogleTokens(tokens: GoogleTokens) {
+  googleTokensCache = tokens;
   writeJsonFile(googleTokensPath, tokens);
-  setGoogleEnv(tokens);
 }
 
 export function getGoogleTokens(): GoogleTokens | null {
-  return readJsonFile<GoogleTokens>(googleTokensPath);
+  return googleTokensCache;
 }
+
+export function getGoogleTokensPath(): string {
+  return googleTokensPath;
+}
+
+// ============================================================================
+// Telegram Integration
+// ============================================================================
+
+export function setTelegramBotToken(token: string) {
+  integrationsCache.telegramBotToken = token;
+  writeJsonFile(integrationsPath, integrationsCache);
+}
+
+export function getTelegramBotToken(): string | undefined {
+  return integrationsCache.telegramBotToken;
+}
+
+// ============================================================================
+// Status
+// ============================================================================
 
 export function getIntegrationStatus() {
   const linkedin = getLinkedInCookies();
@@ -106,7 +148,7 @@ export function getIntegrationStatus() {
     notion: { connected: Boolean(getNotionApiKey()) },
     google: {
       connected: Boolean(
-        googleTokens?.refresh_token || googleTokens?.access_token
+        googleTokens?.refresh_token || googleTokens?.access_token,
       ),
       email: googleTokens?.email,
     },
@@ -117,40 +159,4 @@ export function getIntegrationStatus() {
       connected: Boolean(getTelegramBotToken()),
     },
   };
-}
-
-export function getGoogleTokensPath(): string {
-  return googleTokensPath;
-}
-
-export function setTelegramBotToken(token: string) {
-  const store = readJsonFile<IntegrationsStore>(integrationsPath) || {};
-  store.telegramBotToken = token;
-  writeJsonFile(integrationsPath, store);
-  process.env.TELEGRAM_BOT_TOKEN = token;
-}
-
-export function getTelegramBotToken(): string | undefined {
-  return process.env.TELEGRAM_BOT_TOKEN;
-}
-
-function setGoogleEnv(tokens: GoogleTokens) {
-  process.env.GOOGLE_ACCESS_TOKEN = tokens.access_token;
-  if (tokens.refresh_token) {
-    process.env.GOOGLE_REFRESH_TOKEN = tokens.refresh_token;
-  }
-  if (tokens.expires_in) {
-    process.env.GOOGLE_TOKEN_EXPIRES_AT = String(
-      tokens.created_at + tokens.expires_in * 1000
-    );
-  }
-  if (tokens.token_type) {
-    process.env.GOOGLE_TOKEN_TYPE = tokens.token_type;
-  }
-  if (tokens.scope) {
-    process.env.GOOGLE_TOKEN_SCOPE = tokens.scope;
-  }
-  if (tokens.email) {
-    process.env.GOOGLE_ACCOUNT = tokens.email;
-  }
 }

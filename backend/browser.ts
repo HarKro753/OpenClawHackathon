@@ -6,6 +6,7 @@ import {
   type Page,
   type BrowserContext,
 } from "playwright-core";
+import { getLinkedInCookies } from "./integrations.js";
 
 type BrowserState = {
   browser: Browser | null;
@@ -24,12 +25,8 @@ const browserState: BrowserState = {
 };
 
 function resolveBraveExecutable(): string {
-  const override = process.env.BRAVE_BROWSER_PATH?.trim();
-  if (override && existsSync(override)) return override;
   if (existsSync(BRAVE_DEFAULT_PATH)) return BRAVE_DEFAULT_PATH;
-  throw new Error(
-    "Brave Browser not found. Install Brave or set BRAVE_BROWSER_PATH.",
-  );
+  throw new Error("Brave Browser not found. Install Brave.");
 }
 
 let browserLaunching: Promise<Browser> | null = null;
@@ -97,15 +94,14 @@ async function getBrowserContext(): Promise<BrowserContext> {
   });
 
   // Inject LinkedIn cookies if available from integrations
-  const linkedinLiAt = process.env.LINKEDIN_LI_AT;
-  const linkedinJsessionId = process.env.LINKEDIN_JSESSIONID;
+  const { liAt, jsessionId } = getLinkedInCookies();
 
-  if (linkedinLiAt && linkedinJsessionId) {
+  if (liAt && jsessionId) {
     console.log("[Browser] Injecting LinkedIn cookies for auto-login...");
     await context.addCookies([
       {
         name: "li_at",
-        value: linkedinLiAt,
+        value: liAt,
         domain: ".linkedin.com",
         path: "/",
         httpOnly: true,
@@ -114,7 +110,7 @@ async function getBrowserContext(): Promise<BrowserContext> {
       },
       {
         name: "JSESSIONID",
-        value: linkedinJsessionId,
+        value: jsessionId,
         domain: ".linkedin.com",
         path: "/",
         httpOnly: true,
@@ -124,7 +120,7 @@ async function getBrowserContext(): Promise<BrowserContext> {
     ]);
     console.log("[Browser] LinkedIn cookies injected successfully");
   } else {
-    console.log("[Browser] No LinkedIn cookies found in environment variables");
+    console.log("[Browser] No LinkedIn cookies found in integrations");
   }
 
   console.log("[Browser] Context created");
@@ -218,13 +214,66 @@ export async function browserSnapshot() {
   };
 }
 
+export async function browserScroll(params: {
+  direction: "up" | "down" | "left" | "right";
+  amount?: number;
+  selector?: string;
+}) {
+  const page = await getActivePage();
+  const selector = params.selector?.trim();
+  const amount = params.amount ?? 500;
+
+  // Calculate scroll deltas based on direction
+  let deltaX = 0;
+  let deltaY = 0;
+
+  switch (params.direction) {
+    case "up":
+      deltaY = -amount;
+      break;
+    case "down":
+      deltaY = amount;
+      break;
+    case "left":
+      deltaX = -amount;
+      break;
+    case "right":
+      deltaX = amount;
+      break;
+  }
+
+  if (selector) {
+    // Scroll within a specific element
+    await page
+      .locator(selector)
+      .first()
+      .evaluate(
+        (el, { dx, dy }) => {
+          el.scrollBy(dx, dy);
+        },
+        { dx: deltaX, dy: deltaY },
+      );
+  } else {
+    // Scroll the page using mouse wheel
+    await page.mouse.wheel(deltaX, deltaY);
+  }
+
+  return {
+    ok: true,
+    scrolled: { deltaX, deltaY },
+    direction: params.direction,
+  };
+}
+
 export async function browserAct(params: {
-  kind: "click" | "type" | "wait";
+  kind: "click" | "type" | "wait" | "scroll";
   selector?: string;
   text?: string;
   input?: string;
   timeMs?: number;
   submit?: boolean;
+  direction?: "up" | "down" | "left" | "right";
+  amount?: number;
 }) {
   const page = await getActivePage();
   const selector = params.selector?.trim();
@@ -270,6 +319,15 @@ export async function browserAct(params: {
       await page.keyboard.press("Enter");
     }
     return { ok: true };
+  }
+
+  if (params.kind === "scroll") {
+    const direction = params.direction ?? "down";
+    return browserScroll({
+      direction,
+      amount: params.amount,
+      selector,
+    });
   }
 
   throw new Error(`Unsupported act kind: ${params.kind}`);

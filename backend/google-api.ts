@@ -71,7 +71,7 @@ async function getValidAccessToken(): Promise<string> {
   const tokens = getGoogleTokens();
   if (!tokens?.access_token) {
     throw new Error(
-      "Google not connected. Please connect Google in the integrations page."
+      "Google not connected. Please connect Google in the integrations page.",
     );
   }
 
@@ -86,7 +86,7 @@ async function getValidAccessToken(): Promise<string> {
   // Token expired, refresh it
   if (!tokens.refresh_token) {
     throw new Error(
-      "Google token expired and no refresh token available. Please reconnect Google."
+      "Google token expired and no refresh token available. Please reconnect Google.",
     );
   }
 
@@ -96,13 +96,15 @@ async function getValidAccessToken(): Promise<string> {
     "..",
     "skills",
     "google",
-    "client_secret.json"
+    "client_secret.json",
   );
   let clientId: string;
   let clientSecret: string;
 
   try {
-    const clientSecretFile = JSON.parse(readFileSync(clientSecretPath, "utf-8"));
+    const clientSecretFile = JSON.parse(
+      readFileSync(clientSecretPath, "utf-8"),
+    );
     const credentials = clientSecretFile.installed || clientSecretFile.web;
     clientId = credentials.client_id;
     clientSecret = credentials.client_secret;
@@ -150,7 +152,7 @@ async function getValidAccessToken(): Promise<string> {
 
 async function googleFetch(
   url: string,
-  options: RequestInit = {}
+  options: RequestInit = {},
 ): Promise<Response> {
   const accessToken = await getValidAccessToken();
   const response = await fetch(url, {
@@ -176,7 +178,7 @@ async function googleFetch(
 
 export async function gmailList(
   query?: string,
-  maxResults: number = 10
+  maxResults: number = 10,
 ): Promise<GmailMessage[]> {
   const params = new URLSearchParams({
     maxResults: String(maxResults),
@@ -186,7 +188,7 @@ export async function gmailList(
   }
 
   const response = await googleFetch(
-    `https://gmail.googleapis.com/gmail/v1/users/me/messages?${params}`
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages?${params}`,
   );
   const data = (await response.json()) as {
     messages?: Array<{ id: string; threadId: string }>;
@@ -217,7 +219,7 @@ export async function gmailList(
 
 export async function gmailGet(messageId: string): Promise<GmailMessage> {
   const response = await googleFetch(
-    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=full`
+    `https://gmail.googleapis.com/gmail/v1/users/me/messages/${messageId}?format=full`,
   );
   const data = (await response.json()) as {
     id: string;
@@ -244,7 +246,7 @@ export async function gmailGet(messageId: string): Promise<GmailMessage> {
     body = Buffer.from(data.payload.body.data, "base64url").toString("utf-8");
   } else if (data.payload?.parts) {
     const textPart = data.payload.parts.find(
-      (p) => p.mimeType === "text/plain"
+      (p) => p.mimeType === "text/plain",
     );
     if (textPart?.body?.data) {
       body = Buffer.from(textPart.body.data, "base64url").toString("utf-8");
@@ -268,16 +270,12 @@ export async function gmailSend(
   to: string,
   subject: string,
   body: string,
-  options?: { html?: boolean; replyToMessageId?: string }
+  options?: { html?: boolean; replyToMessageId?: string },
 ): Promise<{ id: string; threadId: string }> {
   const boundary = "boundary_" + Date.now();
   let rawMessage = "";
 
-  const headers = [
-    `To: ${to}`,
-    `Subject: ${subject}`,
-    `MIME-Version: 1.0`,
-  ];
+  const headers = [`To: ${to}`, `Subject: ${subject}`, `MIME-Version: 1.0`];
 
   if (options?.replyToMessageId) {
     headers.push(`In-Reply-To: ${options.replyToMessageId}`);
@@ -303,7 +301,7 @@ export async function gmailSend(
     {
       method: "POST",
       body: JSON.stringify({ raw: encodedMessage }),
-    }
+    },
   );
 
   const data = (await response.json()) as { id: string; threadId: string };
@@ -314,7 +312,7 @@ export async function gmailDraftCreate(
   to: string,
   subject: string,
   body: string,
-  options?: { html?: boolean }
+  options?: { html?: boolean },
 ): Promise<{ id: string; message: { id: string; threadId: string } }> {
   const headers = [
     `To: ${to}`,
@@ -339,7 +337,7 @@ export async function gmailDraftCreate(
       body: JSON.stringify({
         message: { raw: encodedMessage },
       }),
-    }
+    },
   );
 
   return (await response.json()) as {
@@ -349,14 +347,14 @@ export async function gmailDraftCreate(
 }
 
 export async function gmailDraftSend(
-  draftId: string
+  draftId: string,
 ): Promise<{ id: string; threadId: string }> {
   const response = await googleFetch(
     `https://gmail.googleapis.com/gmail/v1/users/me/drafts/send`,
     {
       method: "POST",
       body: JSON.stringify({ id: draftId }),
-    }
+    },
   );
 
   return (await response.json()) as { id: string; threadId: string };
@@ -370,7 +368,7 @@ export async function calendarList(
   calendarId: string = "primary",
   timeMin?: string,
   timeMax?: string,
-  maxResults: number = 10
+  maxResults: number = 10,
 ): Promise<CalendarEvent[]> {
   const params = new URLSearchParams({
     maxResults: String(maxResults),
@@ -383,8 +381,8 @@ export async function calendarList(
 
   const response = await googleFetch(
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
-      calendarId
-    )}/events?${params}`
+      calendarId,
+    )}/events?${params}`,
   );
 
   const data = (await response.json()) as { items?: CalendarEvent[] };
@@ -393,12 +391,12 @@ export async function calendarList(
 
 export async function calendarGet(
   calendarId: string = "primary",
-  eventId: string
+  eventId: string,
 ): Promise<CalendarEvent> {
   const response = await googleFetch(
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
-      calendarId
-    )}/events/${encodeURIComponent(eventId)}`
+      calendarId,
+    )}/events/${encodeURIComponent(eventId)}`,
   );
 
   return (await response.json()) as CalendarEvent;
@@ -406,16 +404,16 @@ export async function calendarGet(
 
 export async function calendarCreate(
   calendarId: string = "primary",
-  event: CalendarEventInput
+  event: CalendarEventInput,
 ): Promise<CalendarEvent> {
   const response = await googleFetch(
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
-      calendarId
+      calendarId,
     )}/events`,
     {
       method: "POST",
       body: JSON.stringify(event),
-    }
+    },
   );
 
   return (await response.json()) as CalendarEvent;
@@ -424,16 +422,16 @@ export async function calendarCreate(
 export async function calendarUpdate(
   calendarId: string = "primary",
   eventId: string,
-  updates: Partial<CalendarEventInput>
+  updates: Partial<CalendarEventInput>,
 ): Promise<CalendarEvent> {
   const response = await googleFetch(
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
-      calendarId
+      calendarId,
     )}/events/${encodeURIComponent(eventId)}`,
     {
       method: "PATCH",
       body: JSON.stringify(updates),
-    }
+    },
   );
 
   return (await response.json()) as CalendarEvent;
@@ -441,13 +439,13 @@ export async function calendarUpdate(
 
 export async function calendarDelete(
   calendarId: string = "primary",
-  eventId: string
+  eventId: string,
 ): Promise<void> {
   await googleFetch(
     `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(
-      calendarId
+      calendarId,
     )}/events/${encodeURIComponent(eventId)}`,
-    { method: "DELETE" }
+    { method: "DELETE" },
   );
 }
 
@@ -457,12 +455,12 @@ export async function calendarDelete(
 
 export async function sheetsGet(
   spreadsheetId: string,
-  range: string
+  range: string,
 ): Promise<string[][]> {
   const response = await googleFetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
-      spreadsheetId
-    )}/values/${encodeURIComponent(range)}`
+      spreadsheetId,
+    )}/values/${encodeURIComponent(range)}`,
   );
 
   const data = (await response.json()) as { values?: string[][] };
@@ -473,16 +471,20 @@ export async function sheetsUpdate(
   spreadsheetId: string,
   range: string,
   values: string[][],
-  valueInputOption: "RAW" | "USER_ENTERED" = "USER_ENTERED"
-): Promise<{ updatedCells: number; updatedRows: number; updatedColumns: number }> {
+  valueInputOption: "RAW" | "USER_ENTERED" = "USER_ENTERED",
+): Promise<{
+  updatedCells: number;
+  updatedRows: number;
+  updatedColumns: number;
+}> {
   const response = await googleFetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
-      spreadsheetId
+      spreadsheetId,
     )}/values/${encodeURIComponent(range)}?valueInputOption=${valueInputOption}`,
     {
       method: "PUT",
       body: JSON.stringify({ values }),
-    }
+    },
   );
 
   const data = (await response.json()) as {
@@ -498,18 +500,18 @@ export async function sheetsAppend(
   range: string,
   values: string[][],
   valueInputOption: "RAW" | "USER_ENTERED" = "USER_ENTERED",
-  insertDataOption: "OVERWRITE" | "INSERT_ROWS" = "INSERT_ROWS"
+  insertDataOption: "OVERWRITE" | "INSERT_ROWS" = "INSERT_ROWS",
 ): Promise<{ updatedCells: number; updatedRows: number }> {
   const response = await googleFetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
-      spreadsheetId
+      spreadsheetId,
     )}/values/${encodeURIComponent(
-      range
+      range,
     )}:append?valueInputOption=${valueInputOption}&insertDataOption=${insertDataOption}`,
     {
       method: "POST",
       body: JSON.stringify({ values }),
-    }
+    },
   );
 
   const data = (await response.json()) as {
@@ -523,23 +525,23 @@ export async function sheetsAppend(
 
 export async function sheetsClear(
   spreadsheetId: string,
-  range: string
+  range: string,
 ): Promise<void> {
   await googleFetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
-      spreadsheetId
+      spreadsheetId,
     )}/values/${encodeURIComponent(range)}:clear`,
-    { method: "POST" }
+    { method: "POST" },
   );
 }
 
 export async function sheetsMetadata(
-  spreadsheetId: string
+  spreadsheetId: string,
 ): Promise<SheetMetadata> {
   const response = await googleFetch(
     `https://sheets.googleapis.com/v4/spreadsheets/${encodeURIComponent(
-      spreadsheetId
-    )}?fields=spreadsheetId,properties.title,sheets.properties`
+      spreadsheetId,
+    )}?fields=spreadsheetId,properties.title,sheets.properties`,
   );
 
   const data = (await response.json()) as {
@@ -572,9 +574,54 @@ export async function sheetsMetadata(
 // Docs API
 // ============================================================================
 
+export async function docsCreate(
+  title: string,
+  content?: string,
+): Promise<DocsDocument> {
+  // First, create an empty document
+  const createResponse = await googleFetch(
+    "https://docs.googleapis.com/v1/documents",
+    {
+      method: "POST",
+      body: JSON.stringify({ title }),
+    },
+  );
+
+  const doc = (await createResponse.json()) as {
+    documentId: string;
+    title: string;
+  };
+
+  // If content is provided, insert it into the document
+  if (content) {
+    await googleFetch(
+      `https://docs.googleapis.com/v1/documents/${doc.documentId}:batchUpdate`,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          requests: [
+            {
+              insertText: {
+                location: { index: 1 },
+                text: content,
+              },
+            },
+          ],
+        }),
+      },
+    );
+  }
+
+  return {
+    documentId: doc.documentId,
+    title: doc.title,
+    body: content,
+  };
+}
+
 export async function docsGet(documentId: string): Promise<DocsDocument> {
   const response = await googleFetch(
-    `https://docs.googleapis.com/v1/documents/${encodeURIComponent(documentId)}`
+    `https://docs.googleapis.com/v1/documents/${encodeURIComponent(documentId)}`,
   );
 
   const data = (await response.json()) as {
@@ -614,7 +661,7 @@ export async function docsGet(documentId: string): Promise<DocsDocument> {
 
 export async function docsExport(
   documentId: string,
-  format: "txt" | "html" | "pdf" = "txt"
+  format: "txt" | "html" | "pdf" = "txt",
 ): Promise<string> {
   const mimeTypes: Record<string, string> = {
     txt: "text/plain",
@@ -624,8 +671,8 @@ export async function docsExport(
 
   const response = await googleFetch(
     `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(
-      documentId
-    )}/export?mimeType=${encodeURIComponent(mimeTypes[format])}`
+      documentId,
+    )}/export?mimeType=${encodeURIComponent(mimeTypes[format])}`,
   );
 
   if (format === "pdf") {

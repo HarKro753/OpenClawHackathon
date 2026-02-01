@@ -1,6 +1,7 @@
 # dependencies (bun install)
 node_modules
 .brave-profile
+.google-tokens.json
 
 # output
 out
