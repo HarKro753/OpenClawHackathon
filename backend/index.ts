@@ -378,20 +378,14 @@ const server = Bun.serve({
           <!DOCTYPE html>
           <html>
             <head>
-              <title>Google Connected</title>
-              <meta name="viewport" content="width=device-width, initial-scale=1">
+              <title>Success</title>
               <style>
-                body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; background: #f5f5f5; }
-                .container { text-align: center; padding: 40px; background: white; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
-                h1 { color: #34a853; margin-bottom: 16px; }
-                p { color: #666; }
+                body { display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+                p { color: black; font-weight: bold; }
               </style>
             </head>
             <body>
-              <div class="container">
-                <h1>✓ Google Connected!</h1>
-                <p>You can close this window and return to the app.</p>
-              </div>
+              <p>Success</p>
             </body>
           </html>
         `;
