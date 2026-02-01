@@ -193,11 +193,21 @@ const server = Bun.serve({
         );
         const credentials = clientSecret.installed || clientSecret.web;
         const clientId = credentials?.client_id;
-        const redirectUri = "http://localhost:3001/api/auth/google/callback";
+        const redirectUri = credentials?.redirect_uris?.[0];
 
         if (!clientId) {
           return new Response(
             JSON.stringify({ error: "Missing Google OAuth client_id." }),
+            { status: 500, headers },
+          );
+        }
+
+        if (!redirectUri) {
+          return new Response(
+            JSON.stringify({
+              error:
+                "Missing redirect_uri in Google OAuth credentials. Ensure client_secret.json contains a redirect_uris array.",
+            }),
             { status: 500, headers },
           );
         }
@@ -273,12 +283,20 @@ const server = Bun.serve({
         const credentials = clientSecret.installed || clientSecret.web;
         const clientId = credentials?.client_id;
         const clientSecretValue = credentials?.client_secret;
-        const redirectUri =
-          "http://192.168.178.141:3001/api/auth/google/callback";
+        const redirectUri = credentials?.redirect_uris?.[0];
 
         if (!clientId || !clientSecretValue) {
           return new Response(
             JSON.stringify({ error: "Missing Google OAuth credentials." }),
+            { status: 500, headers },
+          );
+        }
+
+        if (!redirectUri) {
+          return new Response(
+            JSON.stringify({
+              error: "Missing redirect_uri in Google OAuth credentials.",
+            }),
             { status: 500, headers },
           );
         }

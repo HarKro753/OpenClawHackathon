@@ -1,0 +1,10 @@
+services:
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflare-tunnel
+    restart: unless-stopped
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - TUNNEL_TOKEN=eyJhIjoiMzc0MjM0MDQwYmMxY2VkOWUxZWE5YzM0M2QxNDJlNjEiLCJ0IjoiN2E0NzI2ZjYtM2RhYy00Nzg5LWIyN2YtOWMxMjFhY2I2NmUwIiwicyI6Ik56VmxOR1ZsT1dFdE5qWTRZaTAwTUdRekxUazRZbVV0TjJRNVlqaGxNekZsTURZMCJ9
+    command: tunnel --no-autoupdate run --url http://host.docker.internal:3000
