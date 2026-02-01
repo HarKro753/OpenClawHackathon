@@ -5,6 +5,10 @@
 
 import SwiftUI
 
+// MARK: - Known SF Symbols
+// Icons that are SF Symbols (not custom assets)
+private let sfSymbolIcons: Set<String> = ["safari", "terminal", "gearshape"]
+
 struct ChatView: View {
     @Environment(\.chatManager) private var chatManager: ChatManager
     @State private var showIntegrations = false
@@ -20,7 +24,7 @@ struct ChatView: View {
                         }
                         if chatManager.isLoading {
                             HStack {
-                                Text("Thinking…")
+                                Text("Thinking...")
                                     .font(.subheadline)
                                     .foregroundStyle(.secondary)
                                     .padding(.horizontal, 16)
@@ -76,6 +80,8 @@ struct ChatView: View {
     }
 }
 
+// MARK: - Chat Bubble
+
 private struct ChatBubble: View {
     let message: ChatMessage
 
@@ -91,52 +97,110 @@ private struct ChatBubble: View {
         }
     }
 
+    @ViewBuilder
     private var bubble: some View {
-        Group {
-            if message.role == .tool {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "wrench.and.screwdriver")
-                        Text(message.toolName ?? "Tool")
-                            .font(.subheadline)
-                            .fontWeight(.semibold)
-                    }
-                    if let command = message.toolCommand {
-                        Text(command)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .padding(8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                                    .fill(Color(.tertiarySystemBackground))
-                            )
-                    }
-                    if !message.content.isEmpty {
-                        Text(message.content)
-                            .font(.footnote)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+        if message.role == .tool {
+            ToolCallRow(message: message)
+        } else {
+            Text(message.content)
+                .font(.body)
+                .foregroundStyle(message.role == .assistant ? Color(.label) : Color(.white))
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
                 .background(
                     RoundedRectangle(cornerRadius: 20, style: .continuous)
-                        .fill(Color(.secondarySystemBackground))
+                        .fill(message.role == .assistant ? Color(.secondarySystemBackground) : Color(.label))
                 )
-            } else {
-                Text(message.content)
-                    .font(.body)
-                    .foregroundStyle(message.role == .assistant ? Color(.label) : Color(.white))
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 12)
-                    .background(
-                        RoundedRectangle(cornerRadius: 20, style: .continuous)
-                            .fill(message.role == .assistant ? Color(.secondarySystemBackground) : Color(.label))
-                    )
+                .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 4)
+                .frame(maxWidth: 320, alignment: message.role == .assistant ? .leading : .trailing)
+        }
+    }
+}
+
+// MARK: - Tool Call Row (Compact, Single-Line)
+
+private struct ToolCallRow: View {
+    let message: ChatMessage
+    @Environment(\.openURL) private var openURL
+
+    private var isComplete: Bool {
+        message.toolSuccess != nil
+    }
+
+    private var hasUrl: Bool {
+        message.toolUrl != nil
+    }
+
+    var body: some View {
+        HStack(spacing: 10) {
+            // Status indicator: spinner while in progress, checkmark/x when done
+            statusIndicator
+
+            // Service icon (SF Symbol or custom asset from server)
+            toolIcon
+                .frame(width: 20, height: 20)
+                .foregroundStyle(.secondary)
+
+            // Label text from server
+            Text(message.toolLabel ?? "Working...")
+                .font(.subheadline)
+                .foregroundStyle(.primary)
+                .lineLimit(1)
+
+            Spacer()
+
+            // Chevron if there's a URL to open
+            if hasUrl {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.tertiary)
             }
         }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 16, style: .continuous)
+                .fill(Color(.secondarySystemBackground))
+        )
         .shadow(color: Color.black.opacity(0.06), radius: 8, x: 0, y: 4)
-        .frame(maxWidth: 320, alignment: message.role == .assistant || message.role == .tool ? .leading : .trailing)
+        .contentShape(Rectangle())
+        .onTapGesture {
+            if let urlString = message.toolUrl, let url = URL(string: urlString) {
+                openURL(url)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var statusIndicator: some View {
+        if isComplete {
+            if message.toolSuccess != true {
+                Image(systemName: "xmark.circle.fill")
+                    .foregroundStyle(.red)
+                    .font(.system(size: 14))
+            }
+        } else {
+            ProgressView()
+                .scaleEffect(0.7)
+                .frame(width: 14, height: 14)
+        }
+    }
+
+    @ViewBuilder
+    private var toolIcon: some View {
+        let iconName = message.toolIcon ?? "gearshape"
+
+        if sfSymbolIcons.contains(iconName) {
+            // SF Symbol
+            Image(systemName: iconName)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        } else {
+            // Custom asset from Assets.xcassets (preserve original colors)
+            Image(iconName)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+        }
     }
 }
 

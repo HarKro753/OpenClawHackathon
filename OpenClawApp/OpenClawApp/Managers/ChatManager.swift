@@ -17,11 +17,12 @@ struct ChatMessage: Identifiable {
     let role: ChatRole
     var content: String
     let timestamp: Date
+    // Tool call properties - all populated from server-sent metadata
     var toolName: String? = nil
-    var toolCommand: String? = nil
-    var toolSuccess: Bool? = nil
-    var toolOutput: String? = nil
-    var toolError: String? = nil
+    var toolIcon: String? = nil     // SF Symbol or custom asset name (e.g., "safari", "google.docs")
+    var toolLabel: String? = nil    // User-friendly label (e.g., "Creating document...")
+    var toolUrl: String? = nil      // Clickable URL if available
+    var toolSuccess: Bool? = nil    // Whether the tool call succeeded
 }
 
 @Observable
@@ -94,27 +95,25 @@ final class ChatManager {
 
                 let type = dict["type"] as? String
                 if type == "tool_call" {
+                    // Server sends: name, icon, label, toolCallId
                     let toolMessage = ChatMessage(
                         role: .tool,
                         content: "",
                         timestamp: Date(),
                         toolName: dict["name"] as? String,
-                        toolCommand: dict["command"] as? String
+                        toolIcon: dict["icon"] as? String,
+                        toolLabel: dict["label"] as? String
                     )
                     toolMessageId = toolMessage.id
                     messages.append(toolMessage)
                 } else if type == "tool_result" {
+                    // Server sends: name, icon, label, url, success, (optional: output, error)
                     guard let toolId = toolMessageId else { continue }
                     updateMessage(id: toolId) { message in
                         message.toolSuccess = dict["success"] as? Bool
-                        message.toolOutput = dict["output"] as? String
-                        message.toolError = dict["error"] as? String
-                        if let success = message.toolSuccess {
-                            message.content =
-                                success
-                                ? (message.toolOutput ?? "")
-                                : "Error: \(message.toolError ?? "Unknown error")"
-                        }
+                        message.toolIcon = dict["icon"] as? String
+                        message.toolLabel = dict["label"] as? String
+                        message.toolUrl = dict["url"] as? String
                     }
                 } else if type == "content" || dict["content"] != nil {
                     if let chunk = dict["content"] as? String, !chunk.isEmpty {

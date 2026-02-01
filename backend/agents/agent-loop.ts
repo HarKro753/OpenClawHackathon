@@ -1,5 +1,11 @@
 import OpenAI from "openai";
 import { executeTool, formatToolResult, getToolDefinitions } from "../tools.js";
+import {
+  getToolIcon,
+  getToolLabel,
+  extractResultUrl,
+  shouldSuppressOutput,
+} from "../tool-metadata.js";
 
 // ============================================================================
 // Types
@@ -152,11 +158,13 @@ export async function runAgentLoopStreaming(
             args = {};
           }
 
+          console.log(JSON.stringify(args, null, 2));
+
           emitEvent({
             type: "tool_call",
             name: toolCall.name,
-            arguments: args,
-            command: JSON.stringify(args, null, 2),
+            icon: getToolIcon(toolCall.name),
+            label: getToolLabel(toolCall.name, false),
             toolCallId: toolCall.id,
           });
 
@@ -168,8 +176,14 @@ export async function runAgentLoopStreaming(
             type: "tool_result",
             toolCallId: toolCall.id,
             name: toolCall.name,
+            icon: getToolIcon(toolCall.name),
+            label: getToolLabel(toolCall.name, true),
+            url: extractResultUrl(result.output),
             success: result.success,
-            output: result.output,
+            // Suppress verbose output for certain tools (e.g., browser HTML)
+            ...(shouldSuppressOutput(toolCall.name)
+              ? {}
+              : { output: result.output }),
             error: result.error,
           });
 
