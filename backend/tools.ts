@@ -1,7 +1,8 @@
 import type OpenAI from "openai";
 import { browserAct, browserNavigate, browserSnapshot } from "./browser.js";
-import { googleTools } from "./google-tools.js";
-import { getLinkedInCookies, getNotionApiKey } from "./integrations.js";
+import { googleTools } from "./integrations/google-tools.js";
+import { notionTools } from "./integrations/notion-tools.js";
+import { getLinkedInCookies } from "./integrations/index.js";
 
 // ============================================================================
 // Tool Definitions
@@ -33,7 +34,6 @@ async function executeBashCommand(command: string): Promise<ToolResult> {
         ...process.env,
         LINKEDIN_LI_AT: linkedin.liAt ?? "",
         LINKEDIN_JSESSIONID: linkedin.jsessionId ?? "",
-        NOTION_API_KEY: getNotionApiKey() ?? "",
       },
     });
 
@@ -212,6 +212,11 @@ toolRegistry.set(browserTool.name, browserTool);
 
 // Register all Google tools
 for (const tool of googleTools) {
+  toolRegistry.set(tool.name, tool);
+}
+
+// Register all Notion tools
+for (const tool of notionTools) {
   toolRegistry.set(tool.name, tool);
 }
 

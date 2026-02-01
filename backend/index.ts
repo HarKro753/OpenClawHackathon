@@ -15,7 +15,7 @@ import {
   setLinkedInCookies,
   setTelegramBotToken,
   getTelegramBotToken,
-} from "./integrations.js";
+} from "./integrations/index.js";
 import { startTelegramPolling, stopTelegramPolling } from "./telegram.js";
 
 // ============================================================================

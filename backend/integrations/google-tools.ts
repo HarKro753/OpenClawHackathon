@@ -1,5 +1,5 @@
 import type OpenAI from "openai";
-import type { ToolDefinition, ToolResult } from "./tools.js";
+import type { ToolDefinition, ToolResult } from "../tools.js";
 import {
   gmailList,
   gmailGet,

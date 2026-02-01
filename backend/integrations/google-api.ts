@@ -1,6 +1,6 @@
 import { readFileSync } from "fs";
 import { join } from "path";
-import { getGoogleTokens, setGoogleTokens } from "./integrations.js";
+import { getGoogleTokens, setGoogleTokens } from "./index.js";
 
 // ============================================================================
 // Types
@@ -93,6 +93,7 @@ async function getValidAccessToken(): Promise<string> {
   // Load client credentials
   const clientSecretPath = join(
     import.meta.dir,
+    "..",
     "..",
     "skills",
     "google",
@@ -663,11 +664,11 @@ export async function docsExport(
   documentId: string,
   format: "txt" | "html" | "pdf" = "txt",
 ): Promise<string> {
-  const mimeTypes: Record<string, string> = {
+  const mimeTypes = {
     txt: "text/plain",
     html: "text/html",
     pdf: "application/pdf",
-  };
+  } as const;
 
   const response = await googleFetch(
     `https://www.googleapis.com/drive/v3/files/${encodeURIComponent(

@@ -6,7 +6,7 @@ import {
   type Page,
   type BrowserContext,
 } from "playwright-core";
-import { getLinkedInCookies } from "./integrations.js";
+import { getLinkedInCookies } from "./integrations/index.js";
 
 type BrowserState = {
   browser: Browser | null;

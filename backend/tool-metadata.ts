@@ -142,11 +142,51 @@ const TOOL_DISPLAY_MAP: Record<string, ToolDisplayInfo> = {
     labelComplete: "Posted",
   },
 
-  // Notion (future)
+  // Notion
+  notion_search: {
+    icon: "notion",
+    labelInProgress: "Searching Notion...",
+    labelComplete: "Search complete",
+  },
+  notion_get_page: {
+    icon: "notion",
+    labelInProgress: "Reading page...",
+    labelComplete: "Page read",
+  },
+  notion_get_blocks: {
+    icon: "notion",
+    labelInProgress: "Reading content...",
+    labelComplete: "Content read",
+  },
   notion_create_page: {
     icon: "notion",
     labelInProgress: "Creating page...",
     labelComplete: "Page created",
+  },
+  notion_update_page: {
+    icon: "notion",
+    labelInProgress: "Updating page...",
+    labelComplete: "Page updated",
+  },
+  notion_add_blocks: {
+    icon: "notion",
+    labelInProgress: "Adding content...",
+    labelComplete: "Content added",
+  },
+  notion_get_database: {
+    icon: "notion",
+    labelInProgress: "Reading database...",
+    labelComplete: "Database read",
+  },
+  notion_query_database: {
+    icon: "notion",
+    labelInProgress: "Querying database...",
+    labelComplete: "Query complete",
+  },
+  notion_create_database: {
+    icon: "notion",
+    labelInProgress: "Creating database...",
+    labelComplete: "Database created",
   },
 };
 
