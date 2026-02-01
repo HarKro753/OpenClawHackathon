@@ -5,6 +5,10 @@
 
 import SwiftUI
 
+#if canImport(UIKit)
+import UIKit
+#endif
+
 // MARK: - Known SF Symbols
 // Icons that are SF Symbols (not custom assets)
 private let sfSymbolIcons: Set<String> = ["safari", "terminal", "gearshape"]
@@ -39,6 +43,9 @@ struct ChatView: View {
                     .padding(.horizontal, 20)
                     .padding(.top, 24)
                 }
+                .onTapGesture {
+                    hideKeyboard()
+                }
 
                 VStack(spacing: 0) {
                     Divider()
@@ -68,7 +75,6 @@ struct ChatView: View {
                 .background(Color(.systemBackground))
             }
             .navigationTitle("OpenClaw")
-            .ignoresSafeArea(.keyboard, edges: .bottom)
         }
     }
 }
@@ -196,6 +202,18 @@ private struct ToolCallRow: View {
         }
     }
 }
+
+// MARK: - Keyboard Dismissal Helper
+
+#if canImport(UIKit)
+private func hideKeyboard() {
+    UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+}
+#else
+private func hideKeyboard() {
+    // No-op for non-UIKit platforms
+}
+#endif
 
 #Preview {
     ChatView()
