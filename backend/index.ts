@@ -273,7 +273,8 @@ const server = Bun.serve({
         const credentials = clientSecret.installed || clientSecret.web;
         const clientId = credentials?.client_id;
         const clientSecretValue = credentials?.client_secret;
-        const redirectUri = "http://localhost:3001/api/auth/google/callback";
+        const redirectUri =
+          "http://192.168.178.141:3001/api/auth/google/callback";
 
         if (!clientId || !clientSecretValue) {
           return new Response(

@@ -11,12 +11,17 @@ final class IntegrationsManager {
     struct ConnectionStatus: Codable {
         let connected: Bool
     }
+    
+    struct GoogleStatus: Codable {
+        let connected: Bool
+        let email: String?
+    }
 
     struct IntegrationStatus: Codable {
         let notion: ConnectionStatus
-        let gog: ConnectionStatus
+        let google: GoogleStatus
         let linkedin: ConnectionStatus
-        let github: ConnectionStatus?
+        let telegram: ConnectionStatus?
     }
 
     var status: IntegrationStatus?
@@ -27,6 +32,9 @@ final class IntegrationsManager {
     var linkedinJsessionId: String = ""
     var savingLinkedin = false
     var linkedinMessage: String?
+    
+    private var pollingTask: Task<Void, Never>?
+    var isPolling = false
 
     private let baseURL = URL(string: "http://192.168.178.141:3001")!
 
@@ -135,5 +143,27 @@ final class IntegrationsManager {
         }
 
         savingLinkedin = false
+    }
+    
+    // MARK: - Polling
+    
+    @MainActor
+    func startPolling() {
+        guard !isPolling else { return }
+        isPolling = true
+        
+        pollingTask = Task {
+            while !Task.isCancelled && isPolling {
+                await fetchStatus()
+                try? await Task.sleep(for: .seconds(1))
+            }
+        }
+    }
+    
+    @MainActor
+    func stopPolling() {
+        isPolling = false
+        pollingTask?.cancel()
+        pollingTask = nil
     }
 }

@@ -11,7 +11,6 @@ private let sfSymbolIcons: Set<String> = ["safari", "terminal", "gearshape"]
 
 struct ChatView: View {
     @Environment(\.chatManager) private var chatManager: ChatManager
-    @State private var showIntegrations = false
 
     var body: some View {
         NavigationStack {
@@ -66,16 +65,6 @@ struct ChatView: View {
                 .background(Color(.systemBackground))
             }
             .navigationTitle("OpenClaw")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Integrations") {
-                        showIntegrations = true
-                    }
-                }
-            }
-            .fullScreenCover(isPresented: $showIntegrations) {
-                IntegrationsView()
-            }
         }
     }
 }
@@ -207,5 +196,4 @@ private struct ToolCallRow: View {
 #Preview {
     ChatView()
         .environment(\.chatManager, ChatManager())
-        .environment(\.integrationsManager, IntegrationsManager())
 }

@@ -7,9 +7,32 @@
 
 import SwiftUI
 
+enum OnboardingStep {
+    case getStarted
+    case integrations
+    case chat
+}
+
 struct ContentView: View {
+    @State private var currentStep: OnboardingStep = .getStarted
+    
     var body: some View {
-        ChatView()
+        switch currentStep {
+        case .getStarted:
+            GetStartedView {
+                withAnimation {
+                    currentStep = .integrations
+                }
+            }
+        case .integrations:
+            IntegrationsView {
+                withAnimation {
+                    currentStep = .chat
+                }
+            }
+        case .chat:
+            ChatView()
+        }
     }
 }
 

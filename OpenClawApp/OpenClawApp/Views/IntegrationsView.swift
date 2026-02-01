@@ -18,6 +18,8 @@ struct IntegrationsView: View {
     @Environment(\.integrationsManager) private var integrationsManager: IntegrationsManager
     @Environment(\.dismiss) private var dismiss
     @Environment(\.openURL) private var openURL
+    
+    let onContinue: () -> Void
 
     @State private var showBrowser = false
     @State private var browserURL: URL?
@@ -32,71 +34,75 @@ struct IntegrationsView: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                LazyVGrid(columns: columns, spacing: 16) {
-                    // Google - opens in external Safari browser
-                    IntegrationButton(
-                        icon: "google.gmail",
-                        name: "Google",
-                        isConnected: integrationsManager.status?.gog.connected == true
-                    ) {
-                        if let url = URL(string: "http://192.168.178.141:3001/api/auth/google/start") {
-                            openURL(url)
+            VStack(spacing: 0) {
+                ScrollView {
+                    LazyVGrid(columns: columns, spacing: 16) {
+                        // Google - opens in external Safari browser
+                        IntegrationButton(
+                            icon: "google.gmail",
+                            name: "Google",
+                            isConnected: integrationsManager.status?.google.connected == true
+                        ) {
+                            if let url = URL(string: "http://192.168.178.141:3001/api/auth/google/start") {
+                                openURL(url)
+                            }
+                            // Polling will automatically detect when connected
                         }
-                        // Refresh status after a delay to check if connected
-                        Task {
-                            try? await Task.sleep(for: .seconds(3))
-                            await integrationsManager.fetchStatus()
-                        }
-                    }
 
-                    // LinkedIn - opens in Safari View Controller
-                    IntegrationButton(
-                        icon: "linkedin",
-                        name: "LinkedIn",
-                        isConnected: integrationsManager.status?.linkedin.connected == true
-                    ) {
-                        currentIntegration = .linkedin
-                        browserURL = URL(string: "https://www.linkedin.com/login")
-                        showBrowser = true
-                    }
-
-                    // Notion - opens external browser to create integration, then shows API key alert
-                    IntegrationButton(
-                        icon: "notion",
-                        name: "Notion",
-                        isConnected: integrationsManager.status?.notion.connected == true
-                    ) {
-                        if let url = URL(string: "https://www.notion.so/profile/integrations") {
-                            openURL(url)
+                        // LinkedIn - opens in Safari View Controller
+                        IntegrationButton(
+                            icon: "linkedin",
+                            name: "LinkedIn",
+                            isConnected: integrationsManager.status?.linkedin.connected == true
+                        ) {
+                            currentIntegration = .linkedin
+                            browserURL = URL(string: "https://www.linkedin.com/login")
+                            showBrowser = true
                         }
-                        // Show API key alert after a short delay
-                        Task {
-                            try? await Task.sleep(for: .seconds(1))
+
+                        // Notion - opens external browser to create integration, then shows API key alert
+                        IntegrationButton(
+                            icon: "notion",
+                            name: "Notion",
+                            isConnected: integrationsManager.status?.notion.connected == true
+                        ) {
+                            // Show API key alert directly - polling will detect when saved
                             showNotionAPIKeyAlert = true
                         }
-                    }
 
-                    // GitHub (placeholder for now)
-                    IntegrationButton(
-                        icon: "github",
-                        name: "GitHub",
-                        isConnected: integrationsManager.status?.github?.connected == true
-                    ) {
-                        // Not implemented yet
+                        // Telegram (placeholder for now)
+                        IntegrationButton(
+                            icon: "github",
+                            name: "Telegram",
+                            isConnected: integrationsManager.status?.telegram?.connected == true
+                        ) {
+                            // Not implemented yet
+                        }
                     }
+                    .padding(20)
                 }
-                .padding(20)
+                .background(Color(.systemGroupedBackground))
+                
+                // Continue button at bottom
+                VStack(spacing: 0) {
+                    Divider()
+                    Button(action: onContinue) {
+                        Text("Continue")
+                            .font(.headline)
+                            .foregroundStyle(.white)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 16)
+                            .background(
+                                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                    .fill(Color(.label))
+                            )
+                    }
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 16)
+                }
+                .background(Color(.systemBackground))
             }
-            .background(Color(.systemGroupedBackground))
             .navigationTitle("Integrations")
-            .toolbar {
-                ToolbarItem(placement: .topBarTrailing) {
-                    Button("Done") {
-                        dismiss()
-                    }
-                }
-            }
             .sheet(isPresented: $showBrowser, onDismiss: handleBrowserDismiss) {
                 if let url = browserURL, let integration = currentIntegration {
                     InAppBrowserView(
@@ -121,12 +127,20 @@ struct IntegrationsView: View {
                 Text("Create an integration in Notion Settings and paste the Internal Integration Secret here.")
             }
             .task {
-                await integrationsManager.fetchStatus()
+                // Start polling when view appears
+                integrationsManager.startPolling()
+            }
+            .onDisappear {
+                // Stop polling when view disappears
+                integrationsManager.stopPolling()
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
-                Task {
-                    await integrationsManager.fetchStatus()
-                }
+                // Resume polling when app comes to foreground
+                integrationsManager.startPolling()
+            }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
+                // Pause polling when app goes to background
+                integrationsManager.stopPolling()
             }
         }
     }
@@ -413,6 +427,6 @@ struct LinkedInWebView: UIViewRepresentable {
 
 
 #Preview {
-    IntegrationsView()
+    IntegrationsView(onContinue: {})
         .environment(IntegrationsManager())
 }
