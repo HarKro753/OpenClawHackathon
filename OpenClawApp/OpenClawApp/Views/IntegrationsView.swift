@@ -26,7 +26,7 @@ struct IntegrationsView: View {
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
                         Button("Connect Google") {
-                            openURL(URL(string: "http://localhost:3001/api/auth/gog/start")!)
+                            openURL(URL(string: "http://localhost:3001/api/auth/google/start")!)
                         }
                         .buttonStyle(.borderedProminent)
                     }
