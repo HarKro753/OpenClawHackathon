@@ -31,22 +31,26 @@ struct GetStartedView: View {
             
             Spacer()
             
-            // Get Started button
-            Button(action: onGetStarted) {
-                Text("Get Started")
-                    .font(.headline)
-                    .foregroundStyle(.white)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 16)
-                    .background(
-                        RoundedRectangle(cornerRadius: 14, style: .continuous)
-                            .fill(Color(.label))
-                    )
+            // Get Started button at bottom (matching IntegrationsView)
+            VStack(spacing: 0) {
+                Divider()
+                Button(action: onGetStarted) {
+                    Text("Get Started")
+                        .font(.headline)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 16)
+                        .background(
+                            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                                .fill(Color(.label))
+                        )
+                }
+                .padding(.horizontal, 24)
+                .padding(.vertical, 16)
             }
-            .padding(.horizontal, 24)
-            .padding(.bottom, 48)
+            .background(Color(.systemBackground))
         }
-        .background(Color(.systemBackground))
+        .background(Color(.systemGroupedBackground))
     }
 }
 

@@ -26,6 +26,7 @@ struct IntegrationsView: View {
     @State private var currentIntegration: IntegrationType?
     @State private var showNotionAPIKeyAlert = false
     @State private var notionAPIKeyInput = ""
+    @State private var notionPendingAuth = false
 
     private let columns = [
         GridItem(.flexible(), spacing: 16),
@@ -60,14 +61,16 @@ struct IntegrationsView: View {
                             showBrowser = true
                         }
 
-                        // Notion - opens external browser to create integration, then shows API key alert
+                        // Notion - opens external browser to create integration, then shows API key alert on return
                         IntegrationButton(
                             icon: "notion",
                             name: "Notion",
                             isConnected: integrationsManager.status?.notion.connected == true
                         ) {
-                            // Show API key alert directly - polling will detect when saved
-                            showNotionAPIKeyAlert = true
+                            notionPendingAuth = true
+                            if let url = URL(string: "https://www.notion.so/profile/integrations") {
+                                openURL(url)
+                            }
                         }
 
                         // Telegram (placeholder for now)
@@ -137,6 +140,12 @@ struct IntegrationsView: View {
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in
                 // Resume polling when app comes to foreground
                 integrationsManager.startPolling()
+                
+                // Show Notion API key popup if user was setting up integration
+                if notionPendingAuth {
+                    notionPendingAuth = false
+                    showNotionAPIKeyAlert = true
+                }
             }
             .onReceive(NotificationCenter.default.publisher(for: UIApplication.didEnterBackgroundNotification)) { _ in
                 // Pause polling when app goes to background

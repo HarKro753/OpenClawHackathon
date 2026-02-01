@@ -40,31 +40,35 @@ struct ChatView: View {
                     .padding(.top, 24)
                 }
 
-                Divider()
+                VStack(spacing: 0) {
+                    Divider()
 
-                HStack(spacing: 12) {
-                    TextField("Message OpenClaw", text: $chatManager.input)
-                        .textFieldStyle(.plain)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 12)
-                        .background(
-                            RoundedRectangle(cornerRadius: 18, style: .continuous)
-                                .fill(Color(.secondarySystemBackground))
-                        )
+                    HStack(spacing: 12) {
+                        TextField("Message OpenClaw", text: $chatManager.input)
+                            .textFieldStyle(.plain)
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 12)
+                            .background(
+                                RoundedRectangle(cornerRadius: 18, style: .continuous)
+                                    .fill(Color(.secondarySystemBackground))
+                            )
 
-                    Button {
-                        chatManager.send()
-                    } label: {
-                        Image(systemName: "arrow.up.circle.fill")
-                            .font(.system(size: 28))
-                            .foregroundStyle(Color(.label))
+                        Button {
+                            chatManager.send()
+                        } label: {
+                            Image(systemName: "arrow.up.circle.fill")
+                                .font(.system(size: 28))
+                                .foregroundStyle(Color(.label))
+                        }
+                        .disabled(chatManager.isLoading)
                     }
-                    .disabled(chatManager.isLoading)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 12)
                 }
-                .padding(16)
                 .background(Color(.systemBackground))
             }
             .navigationTitle("OpenClaw")
+            .ignoresSafeArea(.keyboard, edges: .bottom)
         }
     }
 }
