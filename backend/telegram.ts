@@ -1,10 +1,10 @@
 import OpenAI from "openai";
-import type { ContextManager } from "./context.js";
 import {
+  type ContextManager,
   runAgentLoopStreaming,
   type StreamEvent,
   DEFAULT_CONFIG,
-} from "./agent-loop.js";
+} from "./agents/index.js";
 
 // ============================================================================
 // Types

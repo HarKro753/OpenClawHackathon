@@ -1,7 +1,12 @@
 import OpenAI from "openai";
 import { join } from "path";
 import { readFileSync } from "fs";
-import { ContextManager } from "./context.js";
+import {
+  ContextManager,
+  runAgentLoopStreaming,
+  DEFAULT_CONFIG,
+  type StreamEvent,
+} from "./agents/index.js";
 import {
   getIntegrationStatus,
   loadIntegrationsFromDisk,
@@ -11,15 +16,7 @@ import {
   setTelegramBotToken,
   getTelegramBotToken,
 } from "./integrations.js";
-import {
-  startTelegramPolling,
-  stopTelegramPolling,
-} from "./telegram.js";
-import {
-  runAgentLoopStreaming,
-  type StreamEvent,
-  DEFAULT_CONFIG,
-} from "./agent-loop.js";
+import { startTelegramPolling, stopTelegramPolling } from "./telegram.js";
 
 // ============================================================================
 // Environment Validation
@@ -30,7 +27,7 @@ const requiredEnvVars = ["OPENAI_API_KEY"];
 for (const envVar of requiredEnvVars) {
   if (!process.env[envVar]) {
     throw new Error(
-      `${envVar} environment variable is not set. Check your .env file.`
+      `${envVar} environment variable is not set. Check your .env file.`,
     );
   }
 }
@@ -42,7 +39,7 @@ for (const envVar of requiredEnvVars) {
 function getSystemContext(): string {
   const now = new Date();
   const timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-  
+
   return `## System Context
 
 - **Current Time**: ${now.toISOString()} (${now.toLocaleString("en-US", { timeZone: timezone, dateStyle: "full", timeStyle: "long" })})
@@ -98,7 +95,7 @@ const server = Bun.serve({
           message: "Backend is running!",
           skills: contextManager.getSkillNames(),
         }),
-        { headers }
+        { headers },
       );
     }
 
@@ -111,7 +108,7 @@ const server = Bun.serve({
       if (!body.apiKey?.trim()) {
         return new Response(
           JSON.stringify({ error: "Notion API key is required." }),
-          { status: 400, headers }
+          { status: 400, headers },
         );
       }
 
@@ -134,7 +131,7 @@ const server = Bun.serve({
           JSON.stringify({
             error: "LinkedIn li_at and JSESSIONID are required.",
           }),
-          { status: 400, headers }
+          { status: 400, headers },
         );
       }
 
@@ -151,7 +148,7 @@ const server = Bun.serve({
       if (!botToken) {
         return new Response(
           JSON.stringify({ error: "Telegram bot token is required." }),
-          { status: 400, headers }
+          { status: 400, headers },
         );
       }
 
@@ -160,7 +157,7 @@ const server = Bun.serve({
         if (currentToken === botToken) {
           return new Response(
             JSON.stringify({ success: true, message: "Token unchanged" }),
-            { headers }
+            { headers },
           );
         }
 
@@ -177,7 +174,7 @@ const server = Bun.serve({
                 ? error.message
                 : "Failed to start Telegram bot.",
           }),
-          { status: 500, headers }
+          { status: 500, headers },
         );
       }
     }
@@ -189,10 +186,10 @@ const server = Bun.serve({
           "..",
           "skills",
           "google",
-          "client_secret.json"
+          "client_secret.json",
         );
         const clientSecret = JSON.parse(
-          readFileSync(clientSecretPath, "utf-8")
+          readFileSync(clientSecretPath, "utf-8"),
         );
         const credentials = clientSecret.installed || clientSecret.web;
         const clientId = credentials?.client_id;
@@ -201,7 +198,7 @@ const server = Bun.serve({
         if (!clientId) {
           return new Response(
             JSON.stringify({ error: "Missing Google OAuth client_id." }),
-            { status: 500, headers }
+            { status: 500, headers },
           );
         }
 
@@ -238,7 +235,7 @@ const server = Bun.serve({
             error:
               error instanceof Error ? error.message : "Failed to start OAuth.",
           }),
-          { status: 500, headers }
+          { status: 500, headers },
         );
       }
     }
@@ -267,10 +264,10 @@ const server = Bun.serve({
           "..",
           "skills",
           "google",
-          "client_secret.json"
+          "client_secret.json",
         );
         const clientSecret = JSON.parse(
-          readFileSync(clientSecretPath, "utf-8")
+          readFileSync(clientSecretPath, "utf-8"),
         );
         const credentials = clientSecret.installed || clientSecret.web;
         const clientId = credentials?.client_id;
@@ -280,7 +277,7 @@ const server = Bun.serve({
         if (!clientId || !clientSecretValue) {
           return new Response(
             JSON.stringify({ error: "Missing Google OAuth credentials." }),
-            { status: 500, headers }
+            { status: 500, headers },
           );
         }
 
@@ -296,14 +293,14 @@ const server = Bun.serve({
               redirect_uri: redirectUri,
               grant_type: "authorization_code",
             }),
-          }
+          },
         );
 
         if (!tokenResponse.ok) {
           const errorText = await tokenResponse.text();
           return new Response(
             JSON.stringify({ error: `OAuth exchange failed: ${errorText}` }),
-            { status: 500, headers }
+            { status: 500, headers },
           );
         }
 
@@ -323,7 +320,7 @@ const server = Bun.serve({
               headers: {
                 Authorization: `Bearer ${tokenData.access_token}`,
               },
-            }
+            },
           );
           if (userInfoResponse.ok) {
             const userInfo = (await userInfoResponse.json()) as {
@@ -335,13 +332,13 @@ const server = Bun.serve({
           } else {
             console.warn(
               "Failed to fetch Google user info:",
-              await userInfoResponse.text()
+              await userInfoResponse.text(),
             );
           }
         } catch (error) {
           console.warn(
             "Failed to fetch Google user info:",
-            error instanceof Error ? error.message : String(error)
+            error instanceof Error ? error.message : String(error),
           );
         }
 
@@ -369,7 +366,7 @@ const server = Bun.serve({
             error:
               error instanceof Error ? error.message : "OAuth callback failed.",
           }),
-          { status: 500, headers }
+          { status: 500, headers },
         );
       }
     }
@@ -393,7 +390,7 @@ const server = Bun.serve({
           JSON.stringify({
             error: "HUME_API_KEY environment variable is not set.",
           }),
-          { status: 500, headers }
+          { status: 500, headers },
         );
       }
 
@@ -420,7 +417,7 @@ const server = Bun.serve({
           JSON.stringify({
             error: `Hume TTS failed (${humeResponse.status}): ${errorText}`,
           }),
-          { status: 502, headers }
+          { status: 502, headers },
         );
       }
 
@@ -449,7 +446,7 @@ const server = Bun.serve({
       const messagesWithContext = contextManager.buildContextMessages(
         selectedSkills,
         messages as OpenAI.Chat.ChatCompletionMessageParam[],
-        systemContext
+        systemContext,
       );
 
       const encoder = new TextEncoder();
@@ -457,7 +454,7 @@ const server = Bun.serve({
         async start(controller) {
           const sendEvent = (data: StreamEvent) => {
             controller.enqueue(
-              encoder.encode(`data: ${JSON.stringify(data)}\n\n`)
+              encoder.encode(`data: ${JSON.stringify(data)}\n\n`),
             );
           };
 
@@ -469,7 +466,7 @@ const server = Bun.serve({
               {
                 ...DEFAULT_CONFIG,
                 model: "gpt-4o-mini",
-              }
+              },
             );
           } catch (error) {
             sendEvent({
@@ -511,16 +508,14 @@ const server = Bun.serve({
 console.log(`Backend server running at http://localhost:${server.port}`);
 console.log(`Loaded skills: ${contextManager.getSkillNames().join(", ")}`);
 console.log(
-  `Skill routing enabled: LLM will select relevant skills per request`
+  `Skill routing enabled: LLM will select relevant skills per request`,
 );
 console.log(`Agentic loop: max ${DEFAULT_CONFIG.maxIterations} iterations`);
 
 // Start Telegram polling if token is configured
 const telegramToken = getTelegramBotToken();
 if (telegramToken) {
-  startTelegramPolling(telegramToken, openai, contextManager).catch(
-    (error) => {
-      console.error("Failed to start Telegram polling:", error);
-    }
-  );
+  startTelegramPolling(telegramToken, openai, contextManager).catch((error) => {
+    console.error("Failed to start Telegram polling:", error);
+  });
 }
